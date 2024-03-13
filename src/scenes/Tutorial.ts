@@ -123,7 +123,7 @@ export default class Demo extends Phaser.Scene {
     )
   }
 
-  update(time: number, delta: number): void {
+  update(_unused: unknown, delta: number): void {
     this.fps = Math.round(1000 / (delta || 1))
 
     this.fpsText?.setText(`FPS: ${this.fps}`)
@@ -154,7 +154,7 @@ export default class Demo extends Phaser.Scene {
   }
 
   private _collectStar(
-    player: Phaser.GameObjects.GameObject | Phaser.Tilemaps.Tile,
+    _unused: unknown,
     star: Phaser.GameObjects.GameObject | Phaser.Tilemaps.Tile
   ) {
     this.score += 10
@@ -181,10 +181,7 @@ export default class Demo extends Phaser.Scene {
     }
   }
 
-  private _hitBomb(
-    player: Phaser.GameObjects.GameObject | Phaser.Tilemaps.Tile,
-    bomb: Phaser.GameObjects.GameObject | Phaser.Tilemaps.Tile
-  ) {
+  private _hitBomb() {
     this.physics.pause()
 
     this.player?.setTint(0xff0000)
