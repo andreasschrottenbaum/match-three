@@ -1,9 +1,15 @@
-FROM oven/bun:1
-WORKDIR /app
-COPY . .
-RUN bun install
+FROM node:20
 
-ARG PORT
-EXPOSE ${PORT:-3000}
+RUN mkdir -p /home/node/app/node_modules && chown -R node:node /home/node/app
 
-CMD ["bun", "index.ts"]
+WORKDIR /home/node/app
+
+COPY package*.json ./
+USER node
+RUN npm install
+
+COPY --chown=node:node . .
+
+EXPOSE 5173
+
+CMD ["npm", "run", "dev"]
