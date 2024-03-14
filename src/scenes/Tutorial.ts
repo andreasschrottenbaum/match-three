@@ -2,19 +2,21 @@ import Phaser from 'phaser';
 
 export default class Demo extends Phaser.Scene {
 	private platforms?: Phaser.Physics.Arcade.StaticGroup;
+	
 	private player?: Phaser.Physics.Arcade.Sprite;
+	
+	private stars?: Phaser.Physics.Arcade.Group;
+	private bombs?: Phaser.Physics.Arcade.Group;
+	
+	private fpsText?: Phaser.GameObjects.Text;
+	private scoreText?: Phaser.GameObjects.Text;
+	private gameOverText?: Phaser.GameObjects.Text;
+
 	private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
 
-	private stars?: Phaser.Physics.Arcade.Group;
 	private score: number = 0;
-	private scoreText?: Phaser.GameObjects.Text;
-
 	private fps: number = 0;
-	private fpsText?: Phaser.GameObjects.Text;
-
-	private bombs?: Phaser.Physics.Arcade.Group;
 	private gameOver: boolean = false;
-	private gameOverText?: Phaser.GameObjects.Text;
 
 	constructor() {
 		super('TutorialScene');
@@ -145,6 +147,7 @@ export default class Demo extends Phaser.Scene {
 	) {
 		this.score += 10;
 
+		//@todo figure out, why TS is complaining about disableBody
 		star.disableBody(true, true);
 
 		this.scoreText?.setText(`Score: ${this.score}`);
