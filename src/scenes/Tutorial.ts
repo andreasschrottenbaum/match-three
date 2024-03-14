@@ -90,8 +90,8 @@ export default class Demo extends Phaser.Scene {
 
 		this.stars = this.physics.add.group({
 			key: 'star',
-			repeat: 11,
-			setXY: { x: 15, y: 0, stepX: 70 }
+			repeat: 11, //                                   ⬇️
+			setXY: { x: 15, y: 0, stepX: 70 } // 15 + (70 * 11)	+ 15 = 800
 		});
 
 		this.stars.children.iterate((child) => {
