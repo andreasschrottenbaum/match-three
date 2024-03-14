@@ -145,6 +145,8 @@ export default class Demo extends Phaser.Scene {
 	) {
 		this.score += 10;
 
+		star.disableBody(true, true);
+
 		this.scoreText?.setText(`Score: ${this.score}`);
 		if (star instanceof Phaser.Physics.Arcade.Image) {
 			star.disableBody(true, true);
@@ -182,8 +184,10 @@ export default class Demo extends Phaser.Scene {
 
 		this.gameOverText?.setText('Game Over');
 
-		setTimeout(() => {
-			this.scene.start('GameOverScene');
-		}, 5000);
+		this.scene.transition({
+			target: 'GameOverScene',
+			duration: 2000,
+			sleep: true
+		});
 	}
 }
