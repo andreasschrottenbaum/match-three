@@ -198,64 +198,86 @@ export class MatchThree extends Scene {
     for (let c = 0; c < GRID_SIZE; c++) {
       let emptySpaces = 0;
 
+      // Von unten nach oben scannen
       for (let r = GRID_SIZE - 1; r >= 0; r--) {
+        // Falls der Slot leer ist (entweder Typ -1 oder view zerstört)
         if (this.board[r][c].type === -1) {
           emptySpaces++;
         } else if (emptySpaces > 0) {
+          // Stein gefunden, der fallen muss
           const tile = this.board[r][c];
           const targetR = r + emptySpaces;
 
+          // 1. Logik im Array sofort umziehen
           this.board[targetR][c] = tile;
           this.board[r][c] = { type: -1, view: null as any };
 
-          // Metadaten aktualisieren
+          // 2. Metadaten im View-Objekt sofort updaten
           tile.view.setData("row", targetR);
 
+          // 3. Bestehende Animationen auf diesem Objekt stoppen (WICHTIG!)
+          this.tweens.killTweensOf(tile.view);
+
           const newPos = this.getTilePosition(targetR, c);
-          longestFall = Math.max(longestFall, emptySpaces * 100);
+          const duration = emptySpaces * 150;
+          longestFall = Math.max(longestFall, duration);
 
           this.tweens.add({
             targets: tile.view,
             y: newPos.y,
-            duration: emptySpaces * 100,
+            duration: duration,
             ease: "Bounce.easeOut",
           });
         }
       }
 
-      // Neue Steine
+      // Neue Steine für diese Spalte generieren
       for (let i = 0; i < emptySpaces; i++) {
         const targetRow = emptySpaces - 1 - i;
         const typeIndex = Math.floor(Math.random() * TILE_TYPES.length);
 
-        // Wir nutzen die neue createTile Funktion
+        // Wir lassen sie von deutlich weiter oben reinregnen
+        const fallDist = emptySpaces + 1;
         const newTile = this.createTile(
           targetRow,
           c,
           typeIndex,
-          emptySpaces * TILE_SIZE,
+          fallDist * TILE_SIZE,
         );
         newTile.view.setAlpha(0);
+
         this.board[targetRow][c] = newTile;
 
         this.tweens.add({
           targets: newTile.view,
           y: this.getTilePosition(targetRow, c).y,
           alpha: 1,
-          duration: emptySpaces * 150,
+          duration: fallDist * 150,
           ease: "Bounce.easeOut",
         });
+
+        longestFall = Math.max(longestFall, fallDist * 150);
       }
     }
 
-    this.time.delayedCall(longestFall + 200, () => {
+    // Sicherheits-Check: Warte, bis alle Tweens sicher fertig sind
+    this.time.delayedCall(longestFall + 100, () => {
       const nextMatches = this.getAllMatches();
       if (nextMatches.length > 0) {
         this.handleMatches(nextMatches);
       } else {
         this.isProcessing = false;
+        // Kleiner Extra-Check: Falls wir noch irgendwo -1 haben, Schwerkraft erneut triggern
+        if (this.hasEmptySlots()) {
+          this.applyGravity();
+        }
       }
     });
+  }
+
+  // Hilfsfunktion für den Sicherheits-Check
+  private hasEmptySlots(): boolean {
+    return this.board.some((row) => row.some((tile) => tile.type === -1));
   }
 
   private getAllMatches(): { r: number; c: number }[] {
