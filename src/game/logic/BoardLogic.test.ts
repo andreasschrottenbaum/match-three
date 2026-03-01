@@ -134,4 +134,22 @@ describe("BoardLogic", () => {
       expect(BoardLogic.calculateScore(matches4, 3)).toBe(180);
     });
   });
+
+  describe("BoardLogic - Deadlock Detection", () => {
+    it("sollte erkennen, wenn ein Zug möglich ist", () => {
+      const grid = [
+        [1, 1, 2, 0], // Der Stein bei [0,2] könnte mit [1,2] getauscht werden
+        [0, 0, 1, 0],
+      ];
+      expect(BoardLogic.hasValidMoves(grid)).toBe(true);
+    });
+
+    it("sollte ein totes Board erkennen", () => {
+      const grid = [
+        [1, 0, 1, 2],
+        [2, 0, 2, 1],
+      ];
+      expect(BoardLogic.hasValidMoves(grid)).toBe(false);
+    });
+  });
 });

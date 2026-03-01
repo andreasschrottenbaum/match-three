@@ -192,9 +192,60 @@ export class MatchThree extends Scene {
     });
 
     this.time.delayedCall(maxDelay + 100, () => {
-      if (BoardLogic.getAllMatches(this.getNumericGrid()).length > 0)
+      const nextMatches = BoardLogic.getAllMatches(this.getNumericGrid());
+
+      if (nextMatches.length > 0) {
         this.handleMatches();
-      else this.isProcessing = false;
+      } else {
+        // Keine weiteren Matches? Prüfen, ob der Spieler noch ziehen kann
+        if (!BoardLogic.hasValidMoves(this.getNumericGrid())) {
+          this.shuffleBoard();
+        } else {
+          this.isProcessing = false;
+        }
+      }
+    });
+  }
+
+  private shuffleBoard() {
+    this.isProcessing = true;
+    console.log("No moves left! Shuffling...");
+
+    // Alle Typen einsammeln
+    const allTypes = this.board.flat().map((t) => t?.type || 0);
+
+    // Einfacher Shuffle-Algorithmus (Fisher-Yates)
+    for (let i = allTypes.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [allTypes[i], allTypes[j]] = [allTypes[j], allTypes[i]];
+    }
+
+    // Board neu belegen und animieren
+    let index = 0;
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        const tile = this.board[r][c]!;
+        tile.type = allTypes[index++];
+        tile.view.setText(TILE_TYPES[tile.type]);
+
+        // Kleiner "Wirbel"-Effekt
+        this.tweens.add({
+          targets: tile.view,
+          scale: 1.2,
+          duration: 200,
+          yoyo: true,
+          delay: (r * GRID_SIZE + c) * 10,
+        });
+      }
+    }
+
+    // Nach dem Shuffle erneut prüfen (Rekursion verhindern durch Sicherheitstimer)
+    this.time.delayedCall(1000, () => {
+      if (!BoardLogic.hasValidMoves(this.getNumericGrid())) {
+        this.shuffleBoard(); // Falls durch Zufall wieder kein Zug möglich ist
+      } else {
+        this.isProcessing = false;
+      }
     });
   }
 

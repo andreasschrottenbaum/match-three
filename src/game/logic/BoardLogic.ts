@@ -85,4 +85,41 @@ export class BoardLogic {
     const points = count * basePointsPerTile + bonus;
     return points * comboMultiplier;
   }
+
+  static hasValidMoves(grid: Grid): boolean {
+    const rows = grid.length;
+    const cols = grid[0].length;
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const currentType = grid[r][c];
+        if (currentType === -1) continue;
+
+        // Prüfe Tausch mit rechtem Nachbarn
+        if (c + 1 < cols) {
+          if (this.checkSwap(grid, r, c, r, c + 1)) return true;
+        }
+        // Prüfe Tausch mit unterem Nachbarn
+        if (r + 1 < rows) {
+          if (this.checkSwap(grid, r, c, r + 1, c)) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private static checkSwap(
+    grid: Grid,
+    r1: number,
+    c1: number,
+    r2: number,
+    c2: number,
+  ): boolean {
+    // Kopie des Grids erstellen (simulierter Tausch)
+    const tempGrid = grid.map((row) => [...row]);
+    [tempGrid[r1][c1], tempGrid[r2][c2]] = [tempGrid[r2][c2], tempGrid[r1][c1]];
+
+    // Prüfen, ob dieser Tausch irgendwo ein Match erzeugt
+    return this.getAllMatches(tempGrid).length > 0;
+  }
 }
