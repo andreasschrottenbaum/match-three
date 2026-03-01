@@ -45,7 +45,7 @@ export class MatchThree extends Scene {
     const pos = this.getTilePosition(r, c);
     const textObj = this.add
       .text(pos.x, pos.y - startYOffset, TILE_TYPES[typeIndex], {
-        fontSize: "40px",
+        fontSize: "56px",
       })
       .setOrigin(0.5)
       .setInteractive();
