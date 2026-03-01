@@ -1,4 +1,5 @@
 import { Scene } from "phaser";
+import { BoardLogic } from "../logic/BoardLogic";
 
 const TILE_TYPES = ["💎", "🍎", "🍇", "🌟", "🧡", "🍀"];
 const GRID_SIZE = 8;
@@ -10,116 +11,63 @@ interface Tile {
 }
 
 export class MatchThree extends Scene {
-  private board: Tile[][] = [];
+  private board: (Tile | null)[][] = [];
+  private isProcessing = false;
   private selectedTile: { r: number; c: number } | null = null;
-  private isProcessing: boolean = false;
-
-  constructor() {
-    super("MatchThree");
-  }
+  private score: number = 0;
+  private scoreText!: Phaser.GameObjects.Text;
 
   create() {
     this.setupBoard();
     this.setupInput();
+
+    this.scoreText = this.add.text(20, 20, "Score: 0", {
+      fontSize: "32px",
+      color: "#ffffff",
+      fontStyle: "bold",
+    });
   }
 
   private setupBoard() {
-    this.board = [];
     for (let r = 0; r < GRID_SIZE; r++) {
       this.board[r] = [];
       for (let c = 0; c < GRID_SIZE; c++) {
-        const typeIndex = Math.floor(Math.random() * TILE_TYPES.length);
-        this.board[r][c] = this.createTile(r, c, typeIndex);
+        this.board[r][c] = this.spawnTile(
+          r,
+          c,
+          Math.floor(Math.random() * TILE_TYPES.length),
+        );
       }
     }
-    this.resolveStartingMatches();
+    this.cleanInitialBoard();
   }
 
-  // Hilfsfunktion zur Erstellung eines Steins (Zentralisiert die Logik)
-  private createTile(
-    r: number,
-    c: number,
-    typeIndex: number,
-    startYOffset: number = 0,
-  ): Tile {
-    const pos = this.getTilePosition(r, c);
-    const textObj = this.add
-      .text(pos.x, pos.y - startYOffset, TILE_TYPES[typeIndex], {
-        fontSize: "56px",
-      })
+  private spawnTile(r: number, c: number, type: number, yOffset = 0): Tile {
+    const pos = this.getTilePos(r, c);
+    const view = this.add
+      .text(pos.x, pos.y - yOffset, TILE_TYPES[type], { fontSize: "52px" })
       .setOrigin(0.5)
       .setInteractive();
 
-    // Wir speichern die Koordinaten direkt im GameObject
-    textObj.setData("row", r);
-    textObj.setData("col", c);
-
-    // Der Listener liest IMMER die aktuellen Daten des Objekts
-    textObj.on("pointerdown", () => {
-      if (this.isProcessing) return;
-      this.selectedTile = {
-        r: textObj.getData("row"),
-        c: textObj.getData("col"),
-      };
+    view.setData("row", r).setData("col", c);
+    view.on("pointerdown", () => {
+      if (!this.isProcessing)
+        this.selectedTile = { r: view.getData("row"), c: view.getData("col") };
     });
 
-    return { type: typeIndex, view: textObj };
+    return { type, view };
   }
 
-  private resolveStartingMatches() {
-    let matches = this.getAllMatches();
+  private cleanInitialBoard() {
+    let matches = BoardLogic.getAllMatches(this.getNumericGrid());
     while (matches.length > 0) {
       matches.forEach((m) => {
         const newType = Math.floor(Math.random() * TILE_TYPES.length);
-        this.board[m.r][m.c].type = newType;
-        this.board[m.r][m.c].view.setText(TILE_TYPES[newType]);
+        this.board[m.r][m.c]!.type = newType;
+        this.board[m.r][m.c]!.view.setText(TILE_TYPES[newType]);
       });
-      matches = this.getAllMatches();
+      matches = BoardLogic.getAllMatches(this.getNumericGrid());
     }
-  }
-
-  private setupInput() {
-    this.input.on("pointerup", (pointer: Phaser.Input.Pointer) => {
-      if (!this.selectedTile || this.isProcessing) return;
-
-      const { r, c } = this.selectedTile;
-      const tile = this.board[r][c];
-      if (!tile) return;
-
-      const dx = pointer.x - tile.view.x;
-      const dy = pointer.y - tile.view.y;
-      const threshold = 25;
-
-      if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
-        let targetR = r;
-        let targetC = c;
-
-        if (Math.abs(dx) > Math.abs(dy)) {
-          targetC = dx > 0 ? c + 1 : c - 1;
-        } else {
-          targetR = dy > 0 ? r + 1 : r - 1;
-        }
-
-        if (
-          targetR >= 0 &&
-          targetR < GRID_SIZE &&
-          targetC >= 0 &&
-          targetC < GRID_SIZE
-        ) {
-          this.swapTiles(r, c, targetR, targetC);
-        }
-      }
-      this.selectedTile = null;
-    });
-  }
-
-  private getTilePosition(r: number, c: number) {
-    const startX = (this.cameras.main.width - GRID_SIZE * TILE_SIZE) / 2;
-    const startY = (this.cameras.main.height - GRID_SIZE * TILE_SIZE) / 2;
-    return {
-      x: startX + c * TILE_SIZE + TILE_SIZE / 2,
-      y: startY + r * TILE_SIZE + TILE_SIZE / 2,
-    };
   }
 
   private swapTiles(
@@ -130,185 +78,143 @@ export class MatchThree extends Scene {
     isReverting = false,
   ) {
     this.isProcessing = true;
-    const tile1 = this.board[r1][c1];
-    const tile2 = this.board[r2][c2];
+    const t1 = this.board[r1][c1]!;
+    const t2 = this.board[r2][c2]!;
 
-    // Array-Logik tauschen
-    this.board[r1][c1] = tile2;
-    this.board[r2][c2] = tile1;
+    this.board[r1][c1] = t2;
+    this.board[r2][c2] = t1;
 
-    // Metadaten der Objekte synchronisieren!
-    tile1.view.setData("row", r2);
-    tile1.view.setData("col", c2);
-    tile2.view.setData("row", r1);
-    tile2.view.setData("col", c1);
-
-    const pos1 = this.getTilePosition(r1, c1);
-    const pos2 = this.getTilePosition(r2, c2);
-
-    this.tweens.add({
-      targets: tile1.view,
-      x: pos2.x,
-      y: pos2.y,
-      duration: 300,
-      ease: "Power2",
-    });
-
-    this.tweens.add({
-      targets: tile2.view,
-      x: pos1.x,
-      y: pos1.y,
-      duration: 300,
-      ease: "Power2",
-      onComplete: () => {
-        if (!isReverting) {
-          const matches = this.getAllMatches();
-          if (matches.length > 0) {
-            this.handleMatches(matches);
-          } else {
-            this.swapTiles(r1, c1, r2, c2, true);
+    [t1, t2].forEach((t) => {
+      const r = t === t1 ? r2 : r1;
+      const c = t === t1 ? c2 : c1;
+      t.view.setData("row", r).setData("col", c);
+      this.tweens.add({
+        targets: t.view,
+        ...this.getTilePos(r, c),
+        duration: 300,
+        onComplete: () => {
+          if (t === t2) {
+            // Nur einmal triggern
+            if (
+              !isReverting &&
+              BoardLogic.getAllMatches(this.getNumericGrid()).length > 0
+            ) {
+              this.handleMatches();
+            } else if (!isReverting) {
+              this.swapTiles(r1, c1, r2, c2, true);
+            } else {
+              this.isProcessing = false;
+            }
           }
-        } else {
-          this.isProcessing = false;
-        }
-      },
+        },
+      });
     });
   }
 
-  private handleMatches(matches: { r: number; c: number }[]) {
-    matches.forEach((m) => {
-      const tile = this.board[m.r][m.c];
-      if (!tile) return;
-      this.tweens.add({
-        targets: tile.view,
-        scale: 0,
-        alpha: 0,
-        duration: 200,
-        onComplete: () => tile.view.destroy(),
-      });
-      tile.type = -1;
+  private handleMatches() {
+    const matches = BoardLogic.getAllMatches(this.getNumericGrid());
+    if (matches.length === 0) return;
+
+    // Punkte berechnen und UI updaten
+    const points = BoardLogic.calculateScore(matches);
+    this.score += points;
+    this.scoreText.setText(`Score: ${this.score}`);
+
+    // Kleiner visueller Effekt für den Score-Zuwachs
+    this.tweens.add({
+      targets: this.scoreText,
+      scale: 1.2,
+      duration: 100,
+      yoyo: true,
     });
 
-    this.time.delayedCall(300, () => this.applyGravity());
+    matches.forEach((m) => {
+      const tile = this.board[m.r][m.c];
+      if (tile) {
+        this.tweens.add({
+          targets: tile.view,
+          scale: 0,
+          alpha: 0,
+          duration: 200,
+          onComplete: () => tile.view.destroy(),
+        });
+        this.board[m.r][m.c] = null;
+      }
+    });
+
+    this.time.delayedCall(250, () => this.applyGravity());
   }
 
   private applyGravity() {
-    let longestFall = 0;
+    const { moves, newTiles } = BoardLogic.getGravityPlan(
+      this.getNumericGrid(),
+    );
+    let maxDelay = 0;
 
-    for (let c = 0; c < GRID_SIZE; c++) {
-      let emptySpaces = 0;
+    moves.forEach((m) => {
+      const tile = this.board[m.fromR][m.c]!;
+      this.board[m.toR][m.c] = tile;
+      this.board[m.fromR][m.c] = null;
+      tile.view.setData("row", m.toR);
 
-      // Von unten nach oben scannen
-      for (let r = GRID_SIZE - 1; r >= 0; r--) {
-        // Falls der Slot leer ist (entweder Typ -1 oder view zerstört)
-        if (this.board[r][c].type === -1) {
-          emptySpaces++;
-        } else if (emptySpaces > 0) {
-          // Stein gefunden, der fallen muss
-          const tile = this.board[r][c];
-          const targetR = r + emptySpaces;
+      const duration = (m.toR - m.fromR) * 100;
+      maxDelay = Math.max(maxDelay, duration);
+      this.tweens.add({
+        targets: tile.view,
+        y: this.getTilePos(m.toR, m.c).y,
+        duration,
+        ease: "Bounce.easeOut",
+      });
+    });
 
-          // 1. Logik im Array sofort umziehen
-          this.board[targetR][c] = tile;
-          this.board[r][c] = { type: -1, view: null as any };
+    newTiles.forEach((n) => {
+      const type = Math.floor(Math.random() * TILE_TYPES.length);
+      const tile = this.spawnTile(n.r, n.c, type, 300);
+      this.board[n.r][n.c] = tile;
+      this.tweens.add({
+        targets: tile.view,
+        y: this.getTilePos(n.r, n.c).y,
+        duration: 500,
+        ease: "Bounce.easeOut",
+      });
+      maxDelay = Math.max(maxDelay, 500);
+    });
 
-          // 2. Metadaten im View-Objekt sofort updaten
-          tile.view.setData("row", targetR);
-
-          // 3. Bestehende Animationen auf diesem Objekt stoppen (WICHTIG!)
-          this.tweens.killTweensOf(tile.view);
-
-          const newPos = this.getTilePosition(targetR, c);
-          const duration = emptySpaces * 150;
-          longestFall = Math.max(longestFall, duration);
-
-          this.tweens.add({
-            targets: tile.view,
-            y: newPos.y,
-            duration: duration,
-            ease: "Bounce.easeOut",
-          });
-        }
-      }
-
-      // Neue Steine für diese Spalte generieren
-      for (let i = 0; i < emptySpaces; i++) {
-        const targetRow = emptySpaces - 1 - i;
-        const typeIndex = Math.floor(Math.random() * TILE_TYPES.length);
-
-        // Wir lassen sie von deutlich weiter oben reinregnen
-        const fallDist = emptySpaces + 1;
-        const newTile = this.createTile(
-          targetRow,
-          c,
-          typeIndex,
-          fallDist * TILE_SIZE,
-        );
-        newTile.view.setAlpha(0);
-
-        this.board[targetRow][c] = newTile;
-
-        this.tweens.add({
-          targets: newTile.view,
-          y: this.getTilePosition(targetRow, c).y,
-          alpha: 1,
-          duration: fallDist * 150,
-          ease: "Bounce.easeOut",
-        });
-
-        longestFall = Math.max(longestFall, fallDist * 150);
-      }
-    }
-
-    // Sicherheits-Check: Warte, bis alle Tweens sicher fertig sind
-    this.time.delayedCall(longestFall + 100, () => {
-      const nextMatches = this.getAllMatches();
-      if (nextMatches.length > 0) {
-        this.handleMatches(nextMatches);
-      } else {
-        this.isProcessing = false;
-        // Kleiner Extra-Check: Falls wir noch irgendwo -1 haben, Schwerkraft erneut triggern
-        if (this.hasEmptySlots()) {
-          this.applyGravity();
-        }
-      }
+    this.time.delayedCall(maxDelay + 100, () => {
+      if (BoardLogic.getAllMatches(this.getNumericGrid()).length > 0)
+        this.handleMatches();
+      else this.isProcessing = false;
     });
   }
 
-  // Hilfsfunktion für den Sicherheits-Check
-  private hasEmptySlots(): boolean {
-    return this.board.some((row) => row.some((tile) => tile.type === -1));
+  private getNumericGrid(): number[][] {
+    return this.board.map((row) => row.map((t) => (t ? t.type : -1)));
   }
 
-  private getAllMatches(): { r: number; c: number }[] {
-    const matches: { r: number; c: number }[] = [];
-    // ... (deine funktionierende Logik hier einfügen)
-    for (let r = 0; r < GRID_SIZE; r++) {
-      for (let c = 0; c < GRID_SIZE - 2; c++) {
-        const type1 = this.board[r][c].type;
-        if (
-          type1 !== -1 &&
-          type1 === this.board[r][c + 1].type &&
-          type1 === this.board[r][c + 2].type
-        ) {
-          matches.push({ r, c }, { r, c: c + 1 }, { r, c: c + 2 });
-        }
+  private getTilePos(r: number, c: number) {
+    const startX = (this.cameras.main.width - GRID_SIZE * TILE_SIZE) / 2;
+    const startY = (this.cameras.main.height - GRID_SIZE * TILE_SIZE) / 2;
+    return {
+      x: startX + c * TILE_SIZE + TILE_SIZE / 2,
+      y: startY + r * TILE_SIZE + TILE_SIZE / 2,
+    };
+  }
+
+  private setupInput() {
+    this.input.on("pointerup", (p: Phaser.Input.Pointer) => {
+      if (!this.selectedTile || this.isProcessing) return;
+      const { r, c } = this.selectedTile;
+      const view = this.board[r][c]?.view;
+      if (!view) return;
+      const dx = p.x - view.x;
+      const dy = p.y - view.y;
+      if (Math.abs(dx) > 20 || Math.abs(dy) > 20) {
+        const tr = Math.abs(dx) > Math.abs(dy) ? r : dy > 0 ? r + 1 : r - 1;
+        const tc = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? c + 1 : c - 1) : c;
+        if (tr >= 0 && tr < GRID_SIZE && tc >= 0 && tc < GRID_SIZE)
+          this.swapTiles(r, c, tr, tc);
       }
-    }
-    for (let r = 0; r < GRID_SIZE - 2; r++) {
-      for (let c = 0; c < GRID_SIZE; c++) {
-        const type1 = this.board[r][c].type;
-        if (
-          type1 !== -1 &&
-          type1 === this.board[r + 1][c].type &&
-          type1 === this.board[r + 2][c].type
-        ) {
-          matches.push({ r, c }, { r: r + 1, c }, { r: r + 2, c });
-        }
-      }
-    }
-    return matches.filter(
-      (v, i, a) => a.findIndex((t) => t.r === v.r && t.c === v.c) === i,
-    );
+      this.selectedTile = null;
+    });
   }
 }
