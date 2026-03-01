@@ -15,6 +15,7 @@ export class MatchThree extends Scene {
   private isProcessing = false;
   private selectedTile: { r: number; c: number } | null = null;
   private score: number = 0;
+  private comboMultiplier: number = 1;
   private scoreText!: Phaser.GameObjects.Text;
 
   create() {
@@ -84,6 +85,10 @@ export class MatchThree extends Scene {
     this.board[r1][c1] = t2;
     this.board[r2][c2] = t1;
 
+    if (!isReverting) {
+      this.comboMultiplier = 1;
+    }
+
     [t1, t2].forEach((t) => {
       const r = t === t1 ? r2 : r1;
       const c = t === t1 ? c2 : c1;
@@ -113,12 +118,15 @@ export class MatchThree extends Scene {
 
   private handleMatches() {
     const matches = BoardLogic.getAllMatches(this.getNumericGrid());
-    if (matches.length === 0) return;
+    if (matches.length === 0) {
+      this.comboMultiplier = 1; // Sicherheitshalber resetten
+      return;
+    }
 
     // Punkte berechnen und UI updaten
-    const points = BoardLogic.calculateScore(matches);
+    const points = BoardLogic.calculateScore(matches, this.comboMultiplier);
     this.score += points;
-    this.scoreText.setText(`Score: ${this.score}`);
+    this.updateScoreUI(points); // Hilfsfunktion für Effekte
 
     // Kleiner visueller Effekt für den Score-Zuwachs
     this.tweens.add({
@@ -142,7 +150,10 @@ export class MatchThree extends Scene {
       }
     });
 
-    this.time.delayedCall(250, () => this.applyGravity());
+    this.time.delayedCall(250, () => {
+      this.comboMultiplier++; // Combo erhöhen für die nächste Welle (applyGravity)
+      this.applyGravity();
+    });
   }
 
   private applyGravity() {
@@ -216,5 +227,30 @@ export class MatchThree extends Scene {
       }
       this.selectedTile = null;
     });
+  }
+
+  private updateScoreUI(addedPoints: number) {
+    this.scoreText.setText(`Score: ${this.score}`);
+
+    console.log(addedPoints);
+
+    // Visuelles Feedback für Combos
+    if (this.comboMultiplier > 1) {
+      const comboText = this.add
+        .text(400, 100, `Combo x${this.comboMultiplier}!`, {
+          fontSize: "48px",
+          color: "#ffcc00",
+          fontStyle: "bold",
+        })
+        .setOrigin(0.5);
+
+      this.tweens.add({
+        targets: comboText,
+        y: 50,
+        alpha: 0,
+        duration: 800,
+        onComplete: () => comboText.destroy(),
+      });
+    }
   }
 }

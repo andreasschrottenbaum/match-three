@@ -65,7 +65,10 @@ export class BoardLogic {
     return { moves, newTiles };
   }
 
-  static calculateScore(matches: MatchPos[]): number {
+  static calculateScore(
+    matches: MatchPos[],
+    comboMultiplier: number = 1,
+  ): number {
     const basePointsPerTile = 10;
     const count = matches.length;
 
@@ -79,6 +82,7 @@ export class BoardLogic {
     if (count === 4) bonus = 20;
     if (count >= 5) bonus = 50;
 
-    return count * basePointsPerTile + bonus;
+    const points = count * basePointsPerTile + bonus;
+    return points * comboMultiplier;
   }
 }

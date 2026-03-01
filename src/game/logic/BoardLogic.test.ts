@@ -109,4 +109,29 @@ describe("BoardLogic", () => {
       expect(BoardLogic.calculateScore(matches)).toBe(60); // 40 + 20 Bonus
     });
   });
+  describe("BoardLogic - Combo Scoring", () => {
+    it("sollte bei Combo x2 die doppelte Punktzahl geben", () => {
+      const matches = [
+        { r: 0, c: 0 },
+        { r: 0, c: 1 },
+        { r: 0, c: 2 },
+      ];
+      const scoreX1 = BoardLogic.calculateScore(matches, 1); // 30
+      const scoreX2 = BoardLogic.calculateScore(matches, 2); // 60
+
+      expect(scoreX2).toBe(scoreX1 * 2);
+      expect(scoreX2).toBe(60);
+    });
+
+    it("sollte Boni vor dem Multiplikator anwenden", () => {
+      const matches4 = [
+        { r: 0, c: 0 },
+        { r: 0, c: 1 },
+        { r: 0, c: 2 },
+        { r: 0, c: 3 },
+      ];
+      // (40 + 20 Bonus) * 3 = 180
+      expect(BoardLogic.calculateScore(matches4, 3)).toBe(180);
+    });
+  });
 });
