@@ -1,4 +1,4 @@
-[![Bun Tests](https://github.com/andreasschrottenbaum/match-three/actions/workflows/test.yml/badge.svg)](https://github.com/andreasschrottenbaum/match-three/actions/workflows/test.yml) [![Deploy Match-3 to GH Pages](https://github.com/andreasschrottenbaum/match-three/actions/workflows/deploy.yml/badge.svg)](https://github.com/andreasschrottenbaum/match-three/actions/workflows/deploy.yml)
+[![Bun Tests](https://github.com/andreasschrottenbaum/match-three/actions/workflows/test.yml/badge.svg)](https://github.com/andreasschrottenbaum/match-three/actions/workflows/test.yml) [![Deploy to GH Pages](https://github.com/andreasschrottenbaum/match-three/actions/workflows/deploy.yml/badge.svg)](https://github.com/andreasschrottenbaum/match-three/actions/workflows/deploy.yml)
 
 # 💎 Zen Match-3 Prototype
 
