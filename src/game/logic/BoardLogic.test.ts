@@ -1,150 +1,143 @@
 import { BoardLogic } from "./BoardLogic";
+import type { TileID } from "../types";
 
 describe("BoardLogic", () => {
   describe("getAllMatches", () => {
-    it("sollte horizontale 3er-Matches erkennen", () => {
-      const grid = [
-        [0, 0, 0, 1, 2], // Match in den ersten drei Spalten
+    it("should detect horizontal matches of 3 tiles", () => {
+      const grid: TileID[][] = [
+        [0, 0, 0, 1, 2], // Match in the first three columns
         [1, 2, 3, 4, 5],
         [0, 1, 0, 1, 0],
       ];
       const matches = BoardLogic.getAllMatches(grid);
       expect(matches).toHaveLength(3);
-      expect(matches).toContainEqual({ r: 0, c: 0 });
-      expect(matches).toContainEqual({ r: 0, c: 1 });
-      expect(matches).toContainEqual({ r: 0, c: 2 });
+      expect(matches).toContainEqual({ row: 0, col: 0 });
+      expect(matches).toContainEqual({ row: 0, col: 1 });
+      expect(matches).toContainEqual({ row: 0, col: 2 });
     });
 
-    it("sollte vertikale 3er-Matches erkennen", () => {
-      const grid = [
+    it("should detect vertical matches of 3 tiles", () => {
+      const grid: TileID[][] = [
         [5, 1],
         [5, 2],
         [5, 3],
       ];
       const matches = BoardLogic.getAllMatches(grid);
       expect(matches).toHaveLength(3);
-      expect(matches).toContainEqual({ r: 0, c: 0 });
-      expect(matches).toContainEqual({ r: 2, c: 0 });
+      expect(matches).toContainEqual({ row: 0, col: 0 });
+      expect(matches).toContainEqual({ row: 1, col: 0 });
+      expect(matches).toContainEqual({ row: 2, col: 0 });
     });
 
-    it("sollte leere Felder (-1) ignorieren", () => {
-      const grid = [
+    it("should ignore empty slots (-1) during match detection", () => {
+      const grid: TileID[][] = [
         [-1, -1, -1, 0, 0],
         [0, 0, 1, 1, 1],
       ];
       const matches = BoardLogic.getAllMatches(grid);
-      // Nur die 1er Reihe sollte matchen, nicht die -1er
+      // Only the 1s should match, the -1s must be ignored
       expect(matches).toHaveLength(3);
-      expect(matches.every((m) => grid[m.r][m.c] === 1)).toBe(true);
+      expect(matches.every((m) => grid[m.row][m.col] === 1)).toBe(true);
     });
   });
 
   describe("getGravityPlan", () => {
-    it("sollte korrekte Fall-Bewegungen berechnen", () => {
-      const grid = [
+    it("should calculate correct downward movements", () => {
+      const grid: TileID[][] = [
         [0, 1],
-        [-1, -1], // Die untere Reihe ist leer
+        [-1, -1], // Bottom row is empty
       ];
       const { moves, newTiles } = BoardLogic.getGravityPlan(grid);
 
-      // Zwei Steine müssen fallen
+      // Two existing tiles must fall
       expect(moves).toHaveLength(2);
-      // Stein bei [0,0] fällt 1 Feld tief auf [1,0]
-      expect(moves).toContainEqual({ fromR: 0, toR: 1, c: 0 });
-      // Zwei neue Steine müssen oben generiert werden
+      // Tile at [0,0] falls 1 row down to [1,0]
+      expect(moves).toContainEqual({ col: 0, fromRow: 0, toRow: 1 });
+      // Two new tiles must be spawned at the top
       expect(newTiles).toHaveLength(2);
+      expect(newTiles).toContainEqual({ row: 0, col: 0 });
+      expect(newTiles).toContainEqual({ row: 0, col: 1 });
     });
   });
-  describe("BoardLogic - Stress Test (Gravity)", () => {
-    it("sollte ein komplexes Loch-Muster korrekt kollabieren lassen", () => {
-      // Ein Grid, das absichtlich "löchrig" ist
-      // 1 = Stein, -1 = Leer
-      const grid = [
-        [1, -1, 1], // Reihe 0
-        [-1, -1, -1], // Reihe 1
-        [1, 1, -1], // Reihe 2
+
+  describe("Stress Test (Gravity)", () => {
+    it("should correctly collapse complex hole patterns", () => {
+      // 1 = Tile, -1 = Empty
+      const grid: TileID[][] = [
+        [1, -1, 1], // Row 0
+        [-1, -1, -1], // Row 1
+        [1, 1, -1], // Row 2
       ];
 
       const { moves, newTiles } = BoardLogic.getGravityPlan(grid);
 
-      // Erwartung für Spalte 0 (c: 0):
-      // Stein bei [0,0] muss 1 Feld tief fallen (auf [1,0]),
-      // weil [1,0] leer ist aber [2,0] belegt.
-      // Moment - in unserem Algorithmus fallen sie GANZ nach unten.
-      // Da [1,0] leer ist, rutscht [0,0] nach unten.
-
-      // Wir prüfen die Konsistenz:
-      // 1. Kein Ziel-Feld (toR) darf doppelt belegt werden.
-      const targets = moves.map((m) => `${m.toR},${m.c}`);
+      // 1. Verify that no target position is occupied twice
+      const targets = moves.map((m) => `${m.toRow},${m.col}`);
       const uniqueTargets = new Set(targets);
       expect(targets.length).toBe(uniqueTargets.size);
 
-      // 2. Die Anzahl der Steine + neue Steine muss wieder GRID_SIZE ergeben
-      const col0Moves = moves.filter((m) => m.c === 0);
-      const col0New = newTiles.filter((n) => n.c === 0);
-      // In Spalte 0 war ein Loch bei [1,0]. Der Stein von [0,0] fällt.
-      // Ein neuer Stein kommt oben rein.
-      expect(col0Moves.length + col0New.length).toBeGreaterThan(0);
+      // 2. Column 0: Tile at [0,0] falls to [1,0] because [1,0] is free and [2,0] is occupied
+      expect(moves).toContainEqual({ col: 0, fromRow: 0, toRow: 1 });
+
+      // 3. New tiles count should match the number of holes in each column
+      const col1New = newTiles.filter((n) => n.col === 1);
+      expect(col1New).toHaveLength(2); // Two holes in column 1
     });
   });
 
-  describe("BoardLogic - Scoring", () => {
-    it("sollte 30 Punkte für ein einfaches 3er-Match geben", () => {
+  describe("Scoring Logic", () => {
+    it("should award 30 points for a simple 3-match", () => {
       const matches = [
-        { r: 0, c: 0 },
-        { r: 0, c: 1 },
-        { r: 0, c: 2 },
+        { row: 0, col: 0 },
+        { row: 0, col: 1 },
+        { row: 0, col: 2 },
       ];
-      expect(BoardLogic.calculateScore(matches)).toBe(30);
+      expect(BoardLogic.calculateScore(matches, 1)).toBe(30);
     });
 
-    it("sollte einen Bonus für 4er-Matches geben", () => {
+    it("should apply a bonus for 4-matches (40 base + 5 bonus)", () => {
       const matches = [
-        { r: 0, c: 0 },
-        { r: 0, c: 1 },
-        { r: 0, c: 2 },
-        { r: 0, c: 3 },
+        { row: 0, col: 0 },
+        { row: 0, col: 1 },
+        { row: 0, col: 2 },
+        { row: 0, col: 3 },
       ];
-      expect(BoardLogic.calculateScore(matches)).toBe(60); // 40 + 20 Bonus
-    });
-  });
-  describe("BoardLogic - Combo Scoring", () => {
-    it("sollte bei Combo x2 die doppelte Punktzahl geben", () => {
-      const matches = [
-        { r: 0, c: 0 },
-        { r: 0, c: 1 },
-        { r: 0, c: 2 },
-      ];
-      const scoreX1 = BoardLogic.calculateScore(matches, 1); // 30
-      const scoreX2 = BoardLogic.calculateScore(matches, 2); // 60
-
-      expect(scoreX2).toBe(scoreX1 * 2);
-      expect(scoreX2).toBe(60);
+      expect(BoardLogic.calculateScore(matches, 1)).toBe(45);
     });
 
-    it("sollte Boni vor dem Multiplikator anwenden", () => {
+    it("should apply the combo multiplier correctly", () => {
+      const matches = [
+        { row: 0, col: 0 },
+        { row: 0, col: 1 },
+        { row: 0, col: 2 },
+      ];
+      // (30 points) * multiplier 2 = 60
+      expect(BoardLogic.calculateScore(matches, 2)).toBe(60);
+    });
+
+    it("should calculate bonus BEFORE applying the multiplier", () => {
       const matches4 = [
-        { r: 0, c: 0 },
-        { r: 0, c: 1 },
-        { r: 0, c: 2 },
-        { r: 0, c: 3 },
+        { row: 0, col: 0 },
+        { row: 0, col: 1 },
+        { row: 0, col: 2 },
+        { row: 0, col: 3 },
       ];
-      // (40 + 20 Bonus) * 3 = 180
-      expect(BoardLogic.calculateScore(matches4, 3)).toBe(180);
+      // (40 base + 5 bonus) * 3 = 135
+      expect(BoardLogic.calculateScore(matches4, 3)).toBe(135);
     });
   });
 
-  describe("BoardLogic - Deadlock Detection", () => {
-    it("sollte erkennen, wenn ein Zug möglich ist", () => {
-      const grid = [
-        [1, 1, 2, 0], // Der Stein bei [0,2] könnte mit [1,2] getauscht werden
+  describe("Deadlock Detection", () => {
+    it("should return true when a valid move exists", () => {
+      const grid: TileID[][] = [
+        [1, 1, 2, 0], // The tile at [0,2] could be swapped with [1,2]
         [0, 0, 1, 0],
       ];
       expect(BoardLogic.hasValidMoves(grid)).toBe(true);
     });
 
-    it("sollte ein totes Board erkennen", () => {
-      const grid = [
+    it("should return false when no moves are possible", () => {
+      const grid: TileID[][] = [
         [1, 0, 1, 2],
         [2, 0, 2, 1],
       ];

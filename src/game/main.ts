@@ -1,20 +1,28 @@
-// import { Game as MainGame } from "./scenes/Game";
 import { MatchThree } from "./scenes/MatchThree";
-import { AUTO, Game, Scale, Types } from "phaser";
+import { Game, Scale, Types } from "phaser";
+import { version } from "../../package.json";
 
-// Find out more information about the Game Config at:
-// https://docs.phaser.io/api-documentation/typedef/types-core#gameconfig
 const config: Types.Core.GameConfig = {
-  type: AUTO,
+  title: "Match Three",
+  url: "https://andreasschrottenbaum.github.io/match-three/",
+  version,
+  parent: "game-container",
   width: 640,
   height: 640,
-  parent: "game-container",
+  transparent: true,
   scale: {
     mode: Scale.FIT,
     autoCenter: Scale.CENTER_BOTH,
   },
   scene: [MatchThree],
-  version: "0.0.1",
+  pixelArt: true,
+  roundPixels: true,
+  banner: {
+    hidePhaser: true,
+    background: ["#292929"],
+  },
+  disableContextMenu: true,
+  seed: [],
 };
 
 const StartGame = (parent: string) => {

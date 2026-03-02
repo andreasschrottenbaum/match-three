@@ -1,125 +1,232 @@
-export type Grid = number[][];
+import type {
+  TileID,
+  GridPosition,
+  GravityResult,
+  GravityMove,
+  EmptySlot,
+} from "../types";
 
-export interface MatchPos {
-  r: number;
-  c: number;
-}
-export interface Move {
-  fromR: number;
-  toR: number;
-  c: number;
-}
-export interface NewTile {
-  r: number;
-  c: number;
-}
-
-export class BoardLogic {
-  static getAllMatches(grid: Grid): MatchPos[] {
-    const matches: MatchPos[] = [];
+class BoardLogic {
+  /**
+   * Scans the entire grid for matches of 3 or more identical tiles.
+   * Checks both horizontal and vertical directions.
+   * @param grid - A 2D array of TileIDs representing the current board state.
+   * @returns An array of unique GridPositions that are part of a match.
+   */
+  static getAllMatches(grid: TileID[][]): GridPosition[] {
+    const matches: GridPosition[] = [];
     const rows = grid.length;
     const cols = grid[0].length;
 
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols - 2; c++) {
-        const type = grid[r][c];
-        if (type !== -1 && type === grid[r][c + 1] && type === grid[r][c + 2]) {
-          matches.push({ r, c }, { r, c: c + 1 }, { r, c: c + 2 });
+    // Horizontal check
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols - 2; col++) {
+        const type = grid[row][col];
+        if (
+          type !== -1 &&
+          type === grid[row][col + 1] &&
+          type === grid[row][col + 2]
+        ) {
+          matches.push(
+            { row, col },
+            { row, col: col + 1 },
+            { row, col: col + 2 },
+          );
         }
       }
     }
 
-    for (let r = 0; r < rows - 2; r++) {
-      for (let c = 0; c < cols; c++) {
-        const type = grid[r][c];
-        if (type !== -1 && type === grid[r + 1][c] && type === grid[r + 2][c]) {
-          matches.push({ r, c }, { r: r + 1, c }, { r: r + 2, c });
+    // Vertical check
+    for (let col = 0; col < cols; col++) {
+      for (let row = 0; row < rows - 2; row++) {
+        const type = grid[row][col];
+        if (
+          type !== -1 &&
+          type === grid[row + 1][col] &&
+          type === grid[row + 2][col]
+        ) {
+          matches.push(
+            { row, col },
+            { row: row + 1, col },
+            { row: row + 2, col },
+          );
         }
       }
     }
 
+    // Filter duplicates (e.g., tiles that are part of both a horizontal and vertical match)
     return matches.filter(
-      (v, i, a) => a.findIndex((t) => t.r === v.r && t.c === v.c) === i,
+      (pos, index, self) =>
+        index === self.findIndex((p) => p.row === pos.row && p.col === pos.col),
     );
   }
 
-  static getGravityPlan(grid: Grid): { moves: Move[]; newTiles: NewTile[] } {
-    const moves: Move[] = [];
-    const newTiles: NewTile[] = [];
+  /**
+   * Calculates the score based on the number of matched tiles and a multiplier.
+   * @param matches - Array of matched grid positions.
+   * @param multiplier - Current combo multiplier.
+   * @returns Total points earned.
+   */
+  static calculateScore(matches: GridPosition[], multiplier: number): number {
+    const basePointsPerTile = 10;
+    const bonusPerExtraTile = 5; // Bonus for matches > 3
+
+    // Basic points: 10 per tile, plus extra for longer chains
+    const baseScore = matches.length * basePointsPerTile;
+    const lengthBonus =
+      matches.length > 3 ? (matches.length - 3) * bonusPerExtraTile : 0;
+
+    return (baseScore + lengthBonus) * multiplier;
+  }
+
+  /**
+   * Analyzes the grid to determine how tiles should fall and where new tiles are needed.
+   * This is calculated column by column from bottom to top.
+   * @param grid - The current grid state (including empty slots marked as -1).
+   * @returns A plan containing movement instructions and spawn locations for new tiles.
+   */
+  static getGravityPlan(grid: TileID[][]): GravityResult {
+    const moves: GravityMove[] = [];
+    const newTiles: EmptySlot[] = [];
     const rows = grid.length;
     const cols = grid[0].length;
 
-    for (let c = 0; c < cols; c++) {
+    for (let col = 0; col < cols; col++) {
       let emptySpaces = 0;
-      for (let r = rows - 1; r >= 0; r--) {
-        if (grid[r][c] === -1) {
+
+      // Scan from bottom to top
+      for (let row = rows - 1; row >= 0; row--) {
+        if (grid[row][col] === -1) {
           emptySpaces++;
         } else if (emptySpaces > 0) {
-          moves.push({ fromR: r, toR: r + emptySpaces, c });
+          // This tile needs to fall down by the number of empty spaces found below it
+          moves.push({
+            col,
+            fromRow: row,
+            toRow: row + emptySpaces,
+          });
         }
       }
+
+      // After scanning all rows in the column, the number of emptySpaces
+      // tells us how many new tiles must spawn at the top.
       for (let i = 0; i < emptySpaces; i++) {
-        newTiles.push({ r: i, c });
+        newTiles.push({
+          row: i,
+          col: col,
+        });
       }
     }
+
     return { moves, newTiles };
   }
 
-  static calculateScore(
-    matches: MatchPos[],
-    comboMultiplier: number = 1,
-  ): number {
-    const basePointsPerTile = 10;
-    const count = matches.length;
-
-    if (count === 0) return 0;
-
-    // Bonus-Logik: Mehr als 3 Steine geben exponentiell mehr Punkte
-    // 3 Steine = 30
-    // 4 Steine = 40 + Bonus 20 = 60
-    // 5 Steine = 50 + Bonus 50 = 100
-    let bonus = 0;
-    if (count === 4) bonus = 20;
-    if (count >= 5) bonus = 50;
-
-    const points = count * basePointsPerTile + bonus;
-    return points * comboMultiplier;
-  }
-
-  static hasValidMoves(grid: Grid): boolean {
+  /**
+   * Checks if there is at least one possible swap that results in a match.
+   * If this returns false, the game is usually over or requires a shuffle.
+   * @param grid - The current grid state.
+   * @returns True if a valid move exists, false otherwise.
+   */
+  static hasValidMoves(grid: TileID[][]): boolean {
     const rows = grid.length;
     const cols = grid[0].length;
 
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const currentType = grid[r][c];
-        if (currentType === -1) continue;
+    // Helper to check if a specific cell would be part of a match
+    const wouldMatch = (
+      tempGrid: TileID[][],
+      row: number,
+      col: number,
+    ): boolean => {
+      const type = tempGrid[row][col];
+      if (type === -1) return false;
 
-        // Prüfe Tausch mit rechtem Nachbarn
-        if (c + 1 < cols) {
-          if (this.checkSwap(grid, r, c, r, c + 1)) return true;
-        }
-        // Prüfe Tausch mit unterem Nachbarn
-        if (r + 1 < rows) {
-          if (this.checkSwap(grid, r, c, r + 1, c)) return true;
-        }
+      // Horizontal check around the tile
+      let horizontalCount = 1;
+      // Check right
+      for (let i = col + 1; i < cols && tempGrid[row][i] === type; i++)
+        horizontalCount++;
+      // Check left
+      for (let i = col - 1; i >= 0 && tempGrid[row][i] === type; i--)
+        horizontalCount++;
+      if (horizontalCount >= 3) return true;
+
+      // Vertical check around the tile
+      let verticalCount = 1;
+      // Check down
+      for (let i = row + 1; i < rows && tempGrid[i][col] === type; i++)
+        verticalCount++;
+      // Check up
+      for (let i = row - 1; i >= 0 && tempGrid[i][col] === type; i--)
+        verticalCount++;
+      if (verticalCount >= 3) return true;
+
+      return false;
+    };
+
+    // Try every possible horizontal swap
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols - 1; col++) {
+        // Swap
+        [grid[row][col], grid[row][col + 1]] = [
+          grid[row][col + 1],
+          grid[row][col],
+        ];
+        const found =
+          wouldMatch(grid, row, col) || wouldMatch(grid, row, col + 1);
+        // Swap back
+        [grid[row][col], grid[row][col + 1]] = [
+          grid[row][col + 1],
+          grid[row][col],
+        ];
+        if (found) return true;
       }
     }
+
+    // Try every possible vertical swap
+    for (let row = 0; row < rows - 1; row++) {
+      for (let col = 0; col < cols; col++) {
+        // Swap
+        [grid[row][col], grid[row + 1][col]] = [
+          grid[row + 1][col],
+          grid[row][col],
+        ];
+        const found =
+          wouldMatch(grid, row, col) || wouldMatch(grid, row + 1, col);
+        // Swap back
+        [grid[row][col], grid[row + 1][col]] = [
+          grid[row + 1][col],
+          grid[row][col],
+        ];
+        if (found) return true;
+      }
+    }
+
     return false;
   }
 
-  private static checkSwap(
-    grid: Grid,
-    r1: number,
-    c1: number,
-    r2: number,
-    c2: number,
-  ): boolean {
-    // Kopie des Grids erstellen (simulierter Tausch)
-    const tempGrid = grid.map((row) => [...row]);
-    [tempGrid[r1][c1], tempGrid[r2][c2]] = [tempGrid[r2][c2], tempGrid[r1][c1]];
-
-    // Prüfen, ob dieser Tausch irgendwo ein Match erzeugt
-    return this.getAllMatches(tempGrid).length > 0;
+  /**
+   * Creates a new grid filled with random tiles.
+   * @param rows - Number of rows.
+   * @param cols - Number of columns.
+   * @param typeCount - How many different tile types exist.
+   * @param randomFn - A function that returns a float between 0 and 1 (e.g., Phaser's rnd.frac).
+   * @returns A fully initialized grid of TileIDs.
+   */
+  static createRandomGrid(
+    rows: number,
+    cols: number,
+    typeCount: number,
+    randomFn: () => number = Math.random,
+  ): TileID[][] {
+    const grid: TileID[][] = [];
+    for (let row = 0; row < rows; row++) {
+      grid[row] = [];
+      for (let col = 0; col < cols; col++) {
+        grid[row][col] = Math.floor(randomFn() * typeCount);
+      }
+    }
+    return grid;
   }
 }
+
+export { BoardLogic };

@@ -1,307 +1,375 @@
 import { Scene } from "phaser";
 import { BoardLogic } from "../logic/BoardLogic";
-
-const TILE_TYPES = ["💎", "🍎", "🍇", "🌟", "🧡", "🍀"];
-const GRID_SIZE = 8;
-const TILE_SIZE = 64;
-
-interface Tile {
-  type: number;
-  view: Phaser.GameObjects.Text;
-}
+import { GameTile } from "../entities/GameTile";
+import type { TileID } from "../types";
+import { ScoreManager } from "../entities/ScoreManager";
 
 export class MatchThree extends Scene {
-  private board: (Tile | null)[][] = [];
-  private isProcessing = false;
-  private selectedTile: { r: number; c: number } | null = null;
-  private score: number = 0;
+  /** The logical representation of the board using visual Tile objects */
+  private board: (GameTile | null)[][] = [];
+
+  /** Constants for the layout - could be moved to a config file later */
+  private readonly GRID_SIZE = 8;
+  private readonly TILE_SIZE = 64;
+  private readonly TYPE_COUNT = 6;
+
+  private scoreManager!: ScoreManager;
+
+  private selectedTile: GameTile | null = null;
+  private isProcessing: boolean = false;
   private comboMultiplier: number = 1;
-  private scoreText!: Phaser.GameObjects.Text;
 
-  create() {
-    this.setupBoard();
-    this.setupInput();
-
-    this.scoreText = this.add.text(20, 20, "Score: 0", {
-      fontSize: "32px",
-      color: "#ffffff",
-      fontStyle: "bold",
-    });
+  constructor() {
+    super("ZenMatchThree");
   }
 
-  private setupBoard() {
-    for (let r = 0; r < GRID_SIZE; r++) {
-      this.board[r] = [];
-      for (let c = 0; c < GRID_SIZE; c++) {
-        this.board[r][c] = this.spawnTile(
-          r,
-          c,
-          Math.floor(Math.random() * TILE_TYPES.length),
+  create(): void {
+    this.setupBoard();
+    this.setupInput();
+    this.scoreManager = new ScoreManager(this);
+  }
+
+  /**
+   * Initializes the grid by creating GameTile instances.
+   * Uses the Phaser RNG for deterministic or seeded randomness.
+   */
+  private setupBoard(): void {
+    // 1. Create a raw numeric grid first via our logic
+    const numericGrid = BoardLogic.createRandomGrid(
+      this.GRID_SIZE,
+      this.GRID_SIZE,
+      this.TYPE_COUNT,
+      () => Phaser.Math.RND.frac(),
+      // () => this.game.rnd.frac(),
+    );
+
+    // 2. Fill the visual board with GameTile instances
+    for (let row = 0; row < this.GRID_SIZE; row++) {
+      this.board[row] = [];
+      for (let col = 0; col < this.GRID_SIZE; col++) {
+        const worldPos = this.getTileWorldPosition(row, col);
+        const tileID = numericGrid[row][col];
+
+        this.board[row][col] = new GameTile(
+          this,
+          worldPos.x,
+          worldPos.y,
+          tileID,
+          row,
+          col,
         );
       }
     }
-    this.cleanInitialBoard();
+
+    // 3. Clean up initial matches without animation
+    this.resolveInitialMatches();
   }
 
-  private spawnTile(r: number, c: number, type: number, yOffset = 0): Tile {
-    const pos = this.getTilePos(r, c);
-    const view = this.add
-      .text(pos.x, pos.y - yOffset, TILE_TYPES[type], { fontSize: "52px" })
-      .setOrigin(0.5)
-      .setInteractive();
+  /**
+   * Calculates the pixel position for a given grid coordinate.
+   */
+  private getTileWorldPosition(
+    row: number,
+    col: number,
+  ): { x: number; y: number } {
+    const startX =
+      (this.cameras.main.width - this.GRID_SIZE * this.TILE_SIZE) / 2;
+    const startY =
+      (this.cameras.main.height - this.GRID_SIZE * this.TILE_SIZE) / 2;
 
-    view.setData("row", r).setData("col", c);
-    view.on("pointerdown", () => {
-      if (!this.isProcessing)
-        this.selectedTile = { r: view.getData("row"), c: view.getData("col") };
-    });
-
-    return { type, view };
-  }
-
-  private cleanInitialBoard() {
-    let matches = BoardLogic.getAllMatches(this.getNumericGrid());
-    while (matches.length > 0) {
-      matches.forEach((m) => {
-        const newType = Math.floor(Math.random() * TILE_TYPES.length);
-        this.board[m.r][m.c]!.type = newType;
-        this.board[m.r][m.c]!.view.setText(TILE_TYPES[newType]);
-      });
-      matches = BoardLogic.getAllMatches(this.getNumericGrid());
-    }
-  }
-
-  private swapTiles(
-    r1: number,
-    c1: number,
-    r2: number,
-    c2: number,
-    isReverting = false,
-  ) {
-    this.isProcessing = true;
-    const t1 = this.board[r1][c1]!;
-    const t2 = this.board[r2][c2]!;
-
-    this.board[r1][c1] = t2;
-    this.board[r2][c2] = t1;
-
-    if (!isReverting) {
-      this.comboMultiplier = 1;
-    }
-
-    [t1, t2].forEach((t) => {
-      const r = t === t1 ? r2 : r1;
-      const c = t === t1 ? c2 : c1;
-      t.view.setData("row", r).setData("col", c);
-      this.tweens.add({
-        targets: t.view,
-        ...this.getTilePos(r, c),
-        duration: 300,
-        onComplete: () => {
-          if (t === t2) {
-            // Nur einmal triggern
-            if (
-              !isReverting &&
-              BoardLogic.getAllMatches(this.getNumericGrid()).length > 0
-            ) {
-              this.handleMatches();
-            } else if (!isReverting) {
-              this.swapTiles(r1, c1, r2, c2, true);
-            } else {
-              this.isProcessing = false;
-            }
-          }
-        },
-      });
-    });
-  }
-
-  private handleMatches() {
-    const matches = BoardLogic.getAllMatches(this.getNumericGrid());
-    if (matches.length === 0) {
-      this.comboMultiplier = 1; // Sicherheitshalber resetten
-      return;
-    }
-
-    // Punkte berechnen und UI updaten
-    const points = BoardLogic.calculateScore(matches, this.comboMultiplier);
-    this.score += points;
-    this.updateScoreUI(points); // Hilfsfunktion für Effekte
-
-    // Kleiner visueller Effekt für den Score-Zuwachs
-    this.tweens.add({
-      targets: this.scoreText,
-      scale: 1.2,
-      duration: 100,
-      yoyo: true,
-    });
-
-    matches.forEach((m) => {
-      const tile = this.board[m.r][m.c];
-      if (tile) {
-        this.tweens.add({
-          targets: tile.view,
-          scale: 0,
-          alpha: 0,
-          duration: 200,
-          onComplete: () => tile.view.destroy(),
-        });
-        this.board[m.r][m.c] = null;
-      }
-    });
-
-    this.time.delayedCall(250, () => {
-      this.comboMultiplier++; // Combo erhöhen für die nächste Welle (applyGravity)
-      this.applyGravity();
-    });
-  }
-
-  private applyGravity() {
-    const { moves, newTiles } = BoardLogic.getGravityPlan(
-      this.getNumericGrid(),
-    );
-    let maxDelay = 0;
-
-    moves.forEach((m) => {
-      const tile = this.board[m.fromR][m.c]!;
-      this.board[m.toR][m.c] = tile;
-      this.board[m.fromR][m.c] = null;
-      tile.view.setData("row", m.toR);
-
-      const duration = (m.toR - m.fromR) * 100;
-      maxDelay = Math.max(maxDelay, duration);
-      this.tweens.add({
-        targets: tile.view,
-        y: this.getTilePos(m.toR, m.c).y,
-        duration,
-        ease: "Bounce.easeOut",
-      });
-    });
-
-    newTiles.forEach((n) => {
-      const type = Math.floor(Math.random() * TILE_TYPES.length);
-      const tile = this.spawnTile(n.r, n.c, type, 300);
-      this.board[n.r][n.c] = tile;
-      this.tweens.add({
-        targets: tile.view,
-        y: this.getTilePos(n.r, n.c).y,
-        duration: 500,
-        ease: "Bounce.easeOut",
-      });
-      maxDelay = Math.max(maxDelay, 500);
-    });
-
-    this.time.delayedCall(maxDelay + 100, () => {
-      const nextMatches = BoardLogic.getAllMatches(this.getNumericGrid());
-
-      if (nextMatches.length > 0) {
-        this.handleMatches();
-      } else {
-        // Keine weiteren Matches? Prüfen, ob der Spieler noch ziehen kann
-        if (!BoardLogic.hasValidMoves(this.getNumericGrid())) {
-          this.shuffleBoard();
-        } else {
-          this.isProcessing = false;
-        }
-      }
-    });
-  }
-
-  private shuffleBoard() {
-    this.isProcessing = true;
-    console.log("No moves left! Shuffling...");
-
-    // Alle Typen einsammeln
-    const allTypes = this.board.flat().map((t) => t?.type || 0);
-
-    // Einfacher Shuffle-Algorithmus (Fisher-Yates)
-    for (let i = allTypes.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [allTypes[i], allTypes[j]] = [allTypes[j], allTypes[i]];
-    }
-
-    // Board neu belegen und animieren
-    let index = 0;
-    for (let r = 0; r < GRID_SIZE; r++) {
-      for (let c = 0; c < GRID_SIZE; c++) {
-        const tile = this.board[r][c]!;
-        tile.type = allTypes[index++];
-        tile.view.setText(TILE_TYPES[tile.type]);
-
-        // Kleiner "Wirbel"-Effekt
-        this.tweens.add({
-          targets: tile.view,
-          scale: 1.2,
-          duration: 200,
-          yoyo: true,
-          delay: (r * GRID_SIZE + c) * 10,
-        });
-      }
-    }
-
-    // Nach dem Shuffle erneut prüfen (Rekursion verhindern durch Sicherheitstimer)
-    this.time.delayedCall(1000, () => {
-      if (!BoardLogic.hasValidMoves(this.getNumericGrid())) {
-        this.shuffleBoard(); // Falls durch Zufall wieder kein Zug möglich ist
-      } else {
-        this.isProcessing = false;
-      }
-    });
-  }
-
-  private getNumericGrid(): number[][] {
-    return this.board.map((row) => row.map((t) => (t ? t.type : -1)));
-  }
-
-  private getTilePos(r: number, c: number) {
-    const startX = (this.cameras.main.width - GRID_SIZE * TILE_SIZE) / 2;
-    const startY = (this.cameras.main.height - GRID_SIZE * TILE_SIZE) / 2;
     return {
-      x: startX + c * TILE_SIZE + TILE_SIZE / 2,
-      y: startY + r * TILE_SIZE + TILE_SIZE / 2,
+      x: startX + col * this.TILE_SIZE + this.TILE_SIZE / 2,
+      y: startY + row * this.TILE_SIZE + this.TILE_SIZE / 2,
     };
   }
 
-  private setupInput() {
-    this.input.on("pointerup", (p: Phaser.Input.Pointer) => {
-      if (!this.selectedTile || this.isProcessing) return;
-      const { r, c } = this.selectedTile;
-      const view = this.board[r][c]?.view;
-      if (!view) return;
-      const dx = p.x - view.x;
-      const dy = p.y - view.y;
-      if (Math.abs(dx) > 20 || Math.abs(dy) > 20) {
-        const tr = Math.abs(dx) > Math.abs(dy) ? r : dy > 0 ? r + 1 : r - 1;
-        const tc = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? c + 1 : c - 1) : c;
-        if (tr >= 0 && tr < GRID_SIZE && tc >= 0 && tc < GRID_SIZE)
-          this.swapTiles(r, c, tr, tc);
+  /**
+   * Ensures the starting board has no pre-existing matches.
+   * It repeatedly replaces matched tiles with new random ones until the board is "clean".
+   */
+  private resolveInitialMatches(): void {
+    // Helper to get the current numeric state for the logic
+    let numericGrid = this.getNumericGrid();
+    let matches = BoardLogic.getAllMatches(numericGrid);
+
+    // Keep swapping matched tiles until no matches are left
+    while (matches.length > 0) {
+      matches.forEach((pos) => {
+        const newTileID = Math.floor(Phaser.Math.RND.frac() * this.TYPE_COUNT);
+
+        // Update the logical ID and the visual text (emoji)
+        const tile = this.board[pos.row][pos.col];
+        if (tile) {
+          tile.tileID = newTileID;
+          // We access the static EMOJIS from GameTile for consistency
+          tile.setText((GameTile as any).EMOJIS[newTileID]);
+        }
+      });
+
+      numericGrid = this.getNumericGrid();
+      matches = BoardLogic.getAllMatches(numericGrid);
+    }
+  }
+
+  /**
+   * Converts the current board of GameTile objects into a 2D array of TileIDs.
+   * This is the bridge between the visual Scene and the static BoardLogic.
+   */
+  private getNumericGrid(): TileID[][] {
+    return this.board.map((row) =>
+      row.map((tile) => (tile ? tile.tileID : -1)),
+    );
+  }
+
+  /**
+   * Sets up the pointer events for the game.
+   * Uses a simple "swipe" detection based on the initial click and release point.
+   */
+  private setupInput(): void {
+    // Input is handled globally on the scene
+    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      if (this.isProcessing) return;
+
+      // Find if we clicked on a tile
+      // Phaser's hitTest identifies game objects under the pointer
+      const objects = this.children.list.filter(
+        (obj) => obj instanceof GameTile,
+      );
+      const clickedTile = objects.find((obj) => {
+        const tile = obj as GameTile;
+        return Phaser.Geom.Rectangle.Contains(
+          tile.getBounds(),
+          pointer.x,
+          pointer.y,
+        );
+      }) as GameTile;
+
+      if (clickedTile) {
+        this.selectedTile = clickedTile;
       }
+    });
+
+    this.input.on("pointerup", (pointer: Phaser.Input.Pointer) => {
+      if (!this.selectedTile || this.isProcessing) return;
+
+      const startX = this.selectedTile.x;
+      const startY = this.selectedTile.y;
+
+      const diffX = pointer.x - startX;
+      const diffY = pointer.y - startY;
+      const threshold = 30; // Minimum distance for a "swipe"
+
+      if (Math.abs(diffX) > threshold || Math.abs(diffY) > threshold) {
+        const { row, col } = this.selectedTile.gridPosition;
+        let targetRow = row;
+        let targetCol = col;
+
+        // Determine direction
+        if (Math.abs(diffX) > Math.abs(diffY)) {
+          targetCol = diffX > 0 ? col + 1 : col - 1;
+        } else {
+          targetRow = diffY > 0 ? row + 1 : row - 1;
+        }
+
+        // Execute swap if target is within grid boundaries
+        if (
+          targetRow >= 0 &&
+          targetRow < this.GRID_SIZE &&
+          targetCol >= 0 &&
+          targetCol < this.GRID_SIZE
+        ) {
+          this.executeSwap(row, col, targetRow, targetCol);
+        }
+      }
+
       this.selectedTile = null;
     });
   }
 
-  private updateScoreUI(addedPoints: number) {
-    this.scoreText.setText(`Score: ${this.score}`);
+  /**
+   * Swaps two tiles in the grid and animates the transition.
+   * If the swap doesn't result in a match, it automatically reverts.
+   * @param row1 - Row of the first tile.
+   * @param col1 - Column of the first tile.
+   * @param row2 - Row of the target position.
+   * @param col2 - Column of the target position.
+   * @param isReverting - Internal flag to prevent infinite loops during undo.
+   */
+  private executeSwap(
+    row1: number,
+    col1: number,
+    row2: number,
+    col2: number,
+    isReverting = false,
+  ): void {
+    this.isProcessing = true;
 
-    console.log(addedPoints);
+    const tile1 = this.board[row1][col1]!;
+    const tile2 = this.board[row2][col2]!;
 
-    // Visuelles Feedback für Combos
-    if (this.comboMultiplier > 1) {
-      const comboText = this.add
-        .text(400, 100, `Combo x${this.comboMultiplier}!`, {
-          fontSize: "48px",
-          color: "#ffcc00",
-          fontStyle: "bold",
-        })
-        .setOrigin(0.5);
+    // 1. Update the logical board (the array)
+    this.board[row1][col1] = tile2;
+    this.board[row2][col2] = tile1;
 
-      this.tweens.add({
-        targets: comboText,
-        y: 50,
-        alpha: 0,
-        duration: 800,
-        onComplete: () => comboText.destroy(),
-      });
+    // 2. Get the target world positions for the animation
+    const pos1 = this.getTileWorldPosition(row1, col1);
+    const pos2 = this.getTileWorldPosition(row2, col2);
+
+    // 3. Animate both tiles using our GameTile helper
+    // We only need to wait for one 'onComplete' to proceed
+    tile1.animateTo(row2, col2, pos2.x, pos2.y);
+
+    // We use a manual tween call here or an onComplete callback to sync the logic
+    this.tweens.add({
+      targets: tile2,
+      x: pos1.x,
+      y: pos1.y,
+      duration: 300,
+      ease: "Back.easeOut",
+      onComplete: () => {
+        tile2.gridPosition = { row: row1, col: col1 };
+
+        if (!isReverting) {
+          const matches = BoardLogic.getAllMatches(this.getNumericGrid());
+
+          if (matches.length > 0) {
+            // Success! Reset combo and handle the explosion
+            this.comboMultiplier = 1;
+            this.handleMatches();
+          } else {
+            // No match found? Swap them back!
+            this.executeSwap(row2, col2, row1, col1, true);
+          }
+        } else {
+          // We just finished a revert-swap, player can move again
+          this.isProcessing = false;
+        }
+      },
+    });
+  }
+
+  /**
+   * Processes all current matches on the board.
+   * Calculates scores, triggers animations, and starts the gravity sequence.
+   */
+  private handleMatches(): void {
+    const numericGrid = this.getNumericGrid();
+    const matches = BoardLogic.getAllMatches(numericGrid);
+
+    if (matches.length === 0) {
+      this.isProcessing = false;
+      return;
+    }
+
+    // 1. Calculate and update score
+    const points = BoardLogic.calculateScore(matches, this.comboMultiplier);
+    const firstMatch = matches[0];
+    const worldPos = this.getTileWorldPosition(firstMatch.row, firstMatch.col);
+    this.scoreManager.addPoints(points, worldPos.x, worldPos.y);
+
+    // 2. Visual: Pop and destroy the matched tiles
+    matches.forEach((pos) => {
+      const tile = this.board[pos.row][pos.col];
+      if (tile) {
+        tile.popAndDestroy();
+        this.board[pos.row][pos.col] = null; // Mark as empty in our visual board
+      }
+    });
+
+    // 3. Wait for the pop animation (200ms) before applying gravity
+    this.time.delayedCall(250, () => {
+      this.applyGravity();
+    });
+  }
+
+  /**
+   * Orchestrates the falling of existing tiles and spawning of new ones.
+   * Automatically checks for chain reactions (cascades) after completion.
+   */
+  private applyGravity(): void {
+    const numericGrid = this.getNumericGrid();
+    const { moves, newTiles } = BoardLogic.getGravityPlan(numericGrid);
+
+    let maxDelay = 0;
+
+    // 1. Move existing tiles down
+    moves.forEach((move) => {
+      const tile = this.board[move.fromRow][move.col]!;
+      const worldPos = this.getTileWorldPosition(move.toRow, move.col);
+
+      // Update our board array
+      this.board[move.toRow][move.col] = tile;
+      this.board[move.fromRow][move.col] = null;
+
+      // Animate (duration based on fall distance)
+      const fallDuration = (move.toRow - move.fromRow) * 100;
+      maxDelay = Math.max(maxDelay, fallDuration);
+
+      tile.animateTo(
+        move.toRow,
+        move.col,
+        worldPos.x,
+        worldPos.y,
+        fallDuration,
+      );
+    });
+
+    // 2. Spawn new tiles from the top
+    newTiles.forEach((slot) => {
+      const tileID = Math.floor(Math.random() * this.TYPE_COUNT);
+      const finalPos = this.getTileWorldPosition(slot.row, slot.col);
+
+      // Start position is above the visible grid
+      const startY = finalPos.y - 300;
+
+      const newTile = new GameTile(
+        this,
+        finalPos.x,
+        startY,
+        tileID,
+        slot.row,
+        slot.col,
+      );
+
+      this.board[slot.row][slot.col] = newTile;
+
+      const fallDuration = 400 + slot.row * 50; // Slight stagger for better feel
+      maxDelay = Math.max(maxDelay, fallDuration);
+
+      newTile.animateTo(
+        slot.row,
+        slot.col,
+        finalPos.x,
+        finalPos.y,
+        fallDuration,
+      );
+    });
+
+    // 3. Chain Reaction Check
+    this.time.delayedCall(maxDelay + 50, () => {
+      const nextMatches = BoardLogic.getAllMatches(this.getNumericGrid());
+
+      if (nextMatches.length > 0) {
+        // Cascade! Increase multiplier and repeat
+        this.comboMultiplier++;
+        this.handleMatches();
+      } else {
+        // Sequence finished. Check if player has moves left.
+        this.checkGameOver();
+      }
+    });
+  }
+
+  /**
+   * Final check after a sequence is finished.
+   * Determines if the player can still make a move.
+   */
+  private checkGameOver(): void {
+    if (!BoardLogic.hasValidMoves(this.getNumericGrid())) {
+      console.log("GAME OVER - No more moves possible.");
+      // TODO: Handle game over
+    } else {
+      this.isProcessing = false; // Player can move again
     }
   }
 }
