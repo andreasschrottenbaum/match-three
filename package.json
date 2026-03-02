@@ -1,35 +1,36 @@
 {
-    "name": "template-bun",
-    "description": "A Phaser 3 template using bun.",
-    "version": "1.1.0",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/phaserjs/template-bun.git"
-    },
-    "author": "Phaser Studio <support@phaser.io> (https://phaser.io/)",
-    "license": "MIT",
-    "licenseUrl": "http://www.opensource.org/licenses/mit-license.php",
-    "bugs": {
-        "url": "https://github.com/phaserjs/template-bun/issues"
-    },
-    "homepage": "https://github.com/phaserjs/template-bun#readme",
-    "scripts": {
-        "dev": "bun log.js dev && bunx --bun vite --config vite/config.dev.mjs",
-        "build": "bun log.js build && bunx --bun vite build --config vite/config.prod.mjs",
-        "dev-nolog": "bunx --bun vite --config vite/config.dev.mjs",
-        "build-nolog": "bunx --bun vite build --config vite/config.prod.mjs"
-    },
-    "devDependencies": {
-        "@types/jsdom": "^28.0.0",
-        "@types/node": "^25.3.3",
-        "jest-canvas-mock": "^2.5.2",
-        "jsdom": "^28.1.0",
-        "terser": "^5.39.0",
-        "typescript": "~5.7.2",
-        "vite": "^6.3.1",
-        "vitest": "^4.0.18"
-    },
-    "dependencies": {
-        "phaser": "^3.90.0"
-    }
+  "name": "match-tree",
+  "description": "A simple Match 3 Game",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andreasschrottenbaum/match-three.git"
+  },
+  "author": "Andreas Schrottenbaum",
+  "license": "MIT",
+  "licenseUrl": "http://www.opensource.org/licenses/mit-license.php",
+  "bugs": {
+    "url": "https://github.com/andreasschrottenbaum/match-three/issues"
+  },
+  "homepage": "https://github.com/andreasschrottenbaum/match-three",
+  "scripts": {
+    "dev": "bunx --bun vite --config vite/config.dev.mts",
+    "build": "bunx --bun vite build --config vite/config.prod.mts",
+    "dev-nolog": "bunx --bun vite --config vite/config.dev.mts",
+    "build-nolog": "bunx --bun vite build --config vite/config.prod.mts",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^28.0.0",
+    "@types/node": "^25.3.3",
+    "jsdom": "^28.1.0",
+    "terser": "^5.39.0",
+    "typescript": "~5.7.2",
+    "vite": "^6.3.1",
+    "vitest": "^4.0.18"
+  },
+  "dependencies": {
+    "phaser": "^3.90.0"
+  }
 }

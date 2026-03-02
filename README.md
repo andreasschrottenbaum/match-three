@@ -39,3 +39,40 @@ git clone [https://github.com/your-username/match-three.git](https://github.com/
 # Install dependencies
 bun install
 ```
+
+### Development
+
+Start the local dev server with Hot Module Replacement (HMR):
+
+```bash
+bun dev
+```
+
+## 🧪 Testing
+
+This project follows a logic-first testing approach. The core grid mathematics are isolated in `BoardLogic.ts` and covered by unit tests.
+
+```bash
+# Run all tests
+bun test
+
+# Run tests in watch mode
+bun test --watch
+```
+
+## 🏗 Architecture
+
+The project implements a Model-View-Controller (MVC) inspired pattern:
+
+1. Logic (The Model): Located in src/logic/BoardLogic.ts. It is a "pure" TypeScript class with no dependencies on Phaser or the DOM. It handles match detection, gravity calculations, and scoring.
+
+2. Scene (The View/Controller): Located in src/scenes/MatchThree.ts. It manages the Phaser lifecycle, handles user input (tweens/swaps), and reflects the state provided by the BoardLogic.
+
+This decoupling allows for lightning-fast unit testing without the overhead of a headless browser.
+
+## 📈 Roadmap
+
+- [ ] Add LocalStorage for Highscores
+- [ ] Implement Particle Effects for matches
+- [ ] Add sound effects and ambient music
+- [ ] Integration/E2E tests with Playwright
