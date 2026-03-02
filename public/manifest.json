@@ -1,0 +1,17 @@
+{
+  "name": "Match Three",
+  "short_name": "MatchThree",
+  "description": "A relaxing Match-Three experience built with Phaser.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f0f0f",
+  "theme_color": "#4a90e2",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
