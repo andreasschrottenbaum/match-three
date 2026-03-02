@@ -10,60 +10,112 @@ export class MatchThree extends Scene {
 
   /** Constants for the layout - could be moved to a config file later */
   private readonly GRID_SIZE = 8;
-  private readonly TILE_SIZE = 64;
-  private readonly TYPE_COUNT = 6;
+  private readonly TYPE_COUNT = 12;
+  private TILE_SIZE = 128;
 
   private scoreManager!: ScoreManager;
 
   private selectedTile: GameTile | null = null;
   private isProcessing: boolean = false;
   private comboMultiplier: number = 1;
+  private emitter: Phaser.GameObjects.Particles.ParticleEmitter;
 
   constructor() {
     super("ZenMatchThree");
   }
 
+  init() {
+    this.TILE_SIZE = (this.cameras.main.width * 0.8) / this.GRID_SIZE;
+  }
+
+  preload(): void {
+    this.load.spritesheet("tiles", "assets/spritesheet.png", {
+      frameWidth: 185,
+      frameHeight: 185,
+    });
+
+    this.load.image("spark", "assets/spark.png");
+  }
+
   create(): void {
-    this.generateParticleTextures();
     this.setupBoard();
     this.setupInput();
     this.scoreManager = new ScoreManager(this);
+
+    this.emitter = this.add.particles(0, 0, "spark", {
+      speed: { min: 80, max: 200 },
+      scale: { start: 1.5, end: 0 },
+      alpha: { start: 1, end: 0 },
+      lifespan: 800,
+      gravityY: 300,
+      rotate: { min: 0, max: 360 },
+      blendMode: "ADD",
+      emitting: false,
+    });
   }
 
   /**
-   * Initializes the grid by creating GameTile instances.
-   * Uses the Phaser RNG for deterministic or seeded randomness.
+   * Initializes the grid with a guaranteed playable start.
    */
   private setupBoard(): void {
-    // 1. Create a raw numeric grid first via our logic
-    const numericGrid = BoardLogic.createRandomGrid(
-      this.GRID_SIZE,
-      this.GRID_SIZE,
-      this.TYPE_COUNT,
-      () => Phaser.Math.RND.frac(),
-      // () => this.game.rnd.frac(),
-    );
+    let isValidStart = false;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 100;
 
-    // 2. Fill the visual board with GameTile instances
+    this.board.forEach((row) => row.forEach((tile) => tile?.destroy()));
+    this.board = [];
+
+    while (!isValidStart && attempts < MAX_ATTEMPTS) {
+      attempts++;
+
+      const numericGrid = BoardLogic.createRandomGrid(
+        this.GRID_SIZE,
+        this.GRID_SIZE,
+        this.TYPE_COUNT,
+        () => Phaser.Math.RND.frac(),
+      );
+
+      if (BoardLogic.hasValidMoves(numericGrid)) {
+        isValidStart = true;
+        this.createVisualBoard(numericGrid);
+      }
+    }
+
+    if (!isValidStart) {
+      console.warn("Could not generate board after 100 attempts");
+
+      this.createVisualBoard(
+        BoardLogic.createRandomGrid(
+          this.GRID_SIZE,
+          this.GRID_SIZE,
+          this.TYPE_COUNT,
+          () => 0.5,
+        ),
+      );
+    }
+
+    this.resolveInitialMatches();
+  }
+
+  /**
+   * Instantiates the GameTile objects.
+   */
+  private createVisualBoard(numericGrid: number[][]): void {
     for (let row = 0; row < this.GRID_SIZE; row++) {
       this.board[row] = [];
       for (let col = 0; col < this.GRID_SIZE; col++) {
         const worldPos = this.getTileWorldPosition(row, col);
-        const tileID = numericGrid[row][col];
-
         this.board[row][col] = new GameTile(
           this,
           worldPos.x,
           worldPos.y,
-          tileID,
+          numericGrid[row][col],
           row,
           col,
+          this.TILE_SIZE,
         );
       }
     }
-
-    // 3. Clean up initial matches without animation
-    this.resolveInitialMatches();
   }
 
   /**
@@ -89,24 +141,18 @@ export class MatchThree extends Scene {
    * It repeatedly replaces matched tiles with new random ones until the board is "clean".
    */
   private resolveInitialMatches(): void {
-    // Helper to get the current numeric state for the logic
     let numericGrid = this.getNumericGrid();
     let matches = BoardLogic.getAllMatches(numericGrid);
 
-    // Keep swapping matched tiles until no matches are left
     while (matches.length > 0) {
       matches.forEach((pos) => {
         const newTileID = Math.floor(Phaser.Math.RND.frac() * this.TYPE_COUNT);
-
-        // Update the logical ID and the visual text (emoji)
         const tile = this.board[pos.row][pos.col];
+
         if (tile) {
-          tile.tileID = newTileID;
-          // We access the static EMOJIS from GameTile for consistency
-          tile.setText((GameTile as any).EMOJIS[newTileID]);
+          tile.updateVisual(newTileID);
         }
       });
-
       numericGrid = this.getNumericGrid();
       matches = BoardLogic.getAllMatches(numericGrid);
     }
@@ -274,7 +320,7 @@ export class MatchThree extends Scene {
     matches.forEach((pos) => {
       const tile = this.board[pos.row][pos.col];
       if (tile) {
-        this.emitParticles(tile.x, tile.y, tile.tileID);
+        this.emitter.explode(10, tile.x, tile.y);
 
         tile.popAndDestroy();
         this.board[pos.row][pos.col] = null; // Mark as empty in our visual board
@@ -334,6 +380,7 @@ export class MatchThree extends Scene {
         tileID,
         slot.row,
         slot.col,
+        this.TILE_SIZE,
       );
 
       this.board[slot.row][slot.col] = newTile;
@@ -372,55 +419,90 @@ export class MatchThree extends Scene {
   private checkGameOver(): void {
     if (!BoardLogic.hasValidMoves(this.getNumericGrid())) {
       console.log("GAME OVER - No more moves possible.");
-      // TODO: Handle game over
+      this.isProcessing = true; // Block further inputs
+      this.showGameOverUI();
     } else {
       this.isProcessing = false; // Player can move again
     }
   }
 
   /**
-   * Creates a burst of particles at a specific position.
-   * @param x - World X coordinate.
-   * @param y - World Y coordinate.
-   * @param color - The color of the particles (optional).
+   * Displays the Game Over overlay with the final score and a restart option.
    */
-  private emitParticles(x: number, y: number, tileID: number): void {
-    const textureKey = `part_${tileID}`;
+  private showGameOverUI(): void {
+    const { width, height } = this.cameras.main;
 
-    const emitter = this.add.particles(x, y, textureKey, {
-      speed: { min: 80, max: 200 },
-      scale: { start: 1, end: 0.2 },
-      alpha: { start: 1, end: 0 },
-      lifespan: 800,
-      gravityY: 300,
-      rotate: { min: 0, max: 360 },
-      emitting: false,
-    });
+    // 1. Create a container to hold all UI elements
+    const uiContainer = this.add.container(0, 0).setDepth(100).setAlpha(0);
 
-    emitter.explode(8);
+    // 2. Semi-transparent background overlay
+    const overlay = this.add
+      .rectangle(0, 0, width, height, 0x000000, 0.7)
+      .setOrigin(0);
 
-    this.time.delayedCall(900, () => emitter.destroy());
-  }
+    // 3. Central info panel (white card)
+    const panelW = Math.min(width * 0.8, 400);
+    const panelH = 300;
+    const panel = this.add
+      .rectangle(width / 2, height / 2, panelW, panelH, 0xffffff, 1)
+      .setStrokeStyle(4, 0x4a90e2);
 
-  /**
-   * Generates dynamic textures from emojis to be used as particle assets.
-   * Creates a hidden canvas for each emoji type and registers it in the TextureManager.
-   */
-  private generateParticleTextures(): void {
-    const emojis = ["💎", "🍎", "🍇", "🌟", "🧡", "🍀"];
+    // 4. "No More Moves" Title
+    const title = this.add
+      .text(width / 2, height / 2 - 70, "NO MORE MOVES", {
+        fontSize: "32px",
+        color: "#333333",
+        fontStyle: "bold",
+        fontFamily: "Arial",
+      })
+      .setOrigin(0.5);
 
-    emojis.forEach((emoji, index) => {
-      const canvas = this.textures.createCanvas(`part_${index}`, 32, 32);
-      if (canvas) {
-        const ctx = canvas.getContext();
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "24px Arial";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(emoji, 16, 16);
+    // 5. Final Score Display
+    const scoreText = this.add
+      .text(
+        width / 2,
+        height / 2,
+        `Final Score: ${this.scoreManager.currentScore}`,
+        {
+          fontSize: "24px",
+          color: "#666666",
+          fontFamily: "Arial",
+        },
+      )
+      .setOrigin(0.5);
 
-        canvas.refresh();
-      }
+    // 6. Interactive Restart Button
+    const restartBtn = this.add
+      .text(width / 2, height / 2 + 80, "PLAY AGAIN", {
+        fontSize: "28px",
+        color: "#ffffff",
+        backgroundColor: "#4a90e2",
+        padding: { x: 20, y: 10 },
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerover", () =>
+        restartBtn.setStyle({ backgroundColor: "#357abd" }),
+      )
+      .on("pointerout", () =>
+        restartBtn.setStyle({ backgroundColor: "#4a90e2" }),
+      )
+      .on("pointerdown", () => {
+        // Clean restart of the current scene
+        this.scene.restart();
+        this.isProcessing = false;
+      });
+
+    // Add everything to the container
+    uiContainer.add([overlay, panel, title, scoreText, restartBtn]);
+
+    // 7. Smooth fade-in animation
+    this.tweens.add({
+      targets: uiContainer,
+      alpha: 1,
+      duration: 500,
+      ease: "Power2",
     });
   }
 }

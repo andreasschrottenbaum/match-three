@@ -1,42 +1,40 @@
-import { Scene, GameObjects } from "phaser";
+import Phaser from "phaser";
 import type { TileID, GridPosition } from "../types";
 
 /**
  * Visual representation of a single tile in the ZenMatchThree game.
- * Extends Phaser's Text object to display emojis and manage its own grid state.
+ * Extends Phaser's Sprite to display high-res assets in a grid.
  */
-export class GameTile extends GameObjects.Text {
+export class GameTile extends Phaser.GameObjects.Sprite {
   public tileID: TileID;
   public gridPosition: GridPosition;
 
-  private static readonly EMOJIS = ["💎", "🍎", "🍇", "🌟", "🧡", "🍀"];
-
   /**
    * @param scene - The Phaser Scene this tile belongs to.
-   * @param x - Initial horizontal world position.
-   * @param y - Initial vertical world position.
-   * @param id - The unique TileID determining the emoji.
+   * @param x - Initial horizontal world position (center).
+   * @param y - Initial vertical world position (center).
+   * @param id - The unique TileID determining the frame.
    * @param row - Initial row index in the grid.
    * @param col - Initial column index in the grid.
    */
   constructor(
-    scene: Scene,
+    scene: Phaser.Scene,
     x: number,
     y: number,
     id: TileID,
     row: number,
     col: number,
+    targetSize: number,
   ) {
-    // Call the parent Text constructor with the corresponding emoji
-    super(scene, x, y, GameTile.EMOJIS[id], {
-      fontSize: "52px",
-      fontFamily: "Arial", // Ensure consistent rendering
-    });
+    super(scene, x, y, "tiles", id);
 
     this.tileID = id;
     this.gridPosition = { row, col };
 
-    // Setup visual properties
+    const scaleFactor = targetSize / this.width;
+    this.setScale(scaleFactor);
+
+    // 2. Setup visual properties
     this.setOrigin(0.5);
     this.setInteractive();
 
@@ -45,12 +43,16 @@ export class GameTile extends GameObjects.Text {
   }
 
   /**
+   * Updates the frame and ID (e.g., during board initialization).
+   * @param newID - The new TileID.
+   */
+  public updateVisual(newID: TileID): void {
+    this.tileID = newID;
+    this.setFrame(newID);
+  }
+
+  /**
    * Updates the internal grid position and starts a movement tween.
-   * @param row - The new target row.
-   * @param col - The new target column.
-   * @param x - The new target X world coordinate.
-   * @param y - The new target Y world coordinate.
-   * @param duration - Animation length in milliseconds.
    */
   public animateTo(
     row: number,
@@ -73,12 +75,15 @@ export class GameTile extends GameObjects.Text {
 
   /**
    * Plays a "pop" animation and destroys the tile.
-   * Used when a match is cleared.
+   * More "juicy" now with scale-up before scale-down.
    */
   public popAndDestroy(): void {
+    const currentScale = this.scaleX;
+
     this.scene.tweens.add({
       targets: this,
-      scale: 0,
+      scaleX: currentScale * 1.3,
+      scaleY: currentScale * 1.3,
       alpha: 0,
       duration: 200,
       onComplete: () => this.destroy(),
