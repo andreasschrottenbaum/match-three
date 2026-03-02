@@ -24,6 +24,7 @@ export class MatchThree extends Scene {
   }
 
   create(): void {
+    this.generateParticleTextures();
     this.setupBoard();
     this.setupInput();
     this.scoreManager = new ScoreManager(this);
@@ -273,6 +274,8 @@ export class MatchThree extends Scene {
     matches.forEach((pos) => {
       const tile = this.board[pos.row][pos.col];
       if (tile) {
+        this.emitParticles(tile.x, tile.y, tile.tileID);
+
         tile.popAndDestroy();
         this.board[pos.row][pos.col] = null; // Mark as empty in our visual board
       }
@@ -373,5 +376,51 @@ export class MatchThree extends Scene {
     } else {
       this.isProcessing = false; // Player can move again
     }
+  }
+
+  /**
+   * Creates a burst of particles at a specific position.
+   * @param x - World X coordinate.
+   * @param y - World Y coordinate.
+   * @param color - The color of the particles (optional).
+   */
+  private emitParticles(x: number, y: number, tileID: number): void {
+    const textureKey = `part_${tileID}`;
+
+    const emitter = this.add.particles(x, y, textureKey, {
+      speed: { min: 80, max: 200 },
+      scale: { start: 1, end: 0.2 },
+      alpha: { start: 1, end: 0 },
+      lifespan: 800,
+      gravityY: 300,
+      rotate: { min: 0, max: 360 },
+      emitting: false,
+    });
+
+    emitter.explode(8);
+
+    this.time.delayedCall(900, () => emitter.destroy());
+  }
+
+  /**
+   * Generates dynamic textures from emojis to be used as particle assets.
+   * Creates a hidden canvas for each emoji type and registers it in the TextureManager.
+   */
+  private generateParticleTextures(): void {
+    const emojis = ["💎", "🍎", "🍇", "🌟", "🧡", "🍀"];
+
+    emojis.forEach((emoji, index) => {
+      const canvas = this.textures.createCanvas(`part_${index}`, 32, 32);
+      if (canvas) {
+        const ctx = canvas.getContext();
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "24px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(emoji, 16, 16);
+
+        canvas.refresh();
+      }
+    });
   }
 }
