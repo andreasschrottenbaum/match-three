@@ -126,26 +126,28 @@ export class MatchThree extends Scene {
    * Uses a simple "swipe" detection based on the initial click and release point.
    */
   private setupInput(): void {
-    // Input is handled globally on the scene
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       if (this.isProcessing) return;
 
-      // Find if we clicked on a tile
-      // Phaser's hitTest identifies game objects under the pointer
-      const objects = this.children.list.filter(
-        (obj) => obj instanceof GameTile,
-      );
-      const clickedTile = objects.find((obj) => {
-        const tile = obj as GameTile;
-        return Phaser.Geom.Rectangle.Contains(
-          tile.getBounds(),
-          pointer.x,
-          pointer.y,
-        );
-      }) as GameTile;
+      const startX =
+        (this.cameras.main.width - this.GRID_SIZE * this.TILE_SIZE) / 2;
+      const startY =
+        (this.cameras.main.height - this.GRID_SIZE * this.TILE_SIZE) / 2;
 
-      if (clickedTile) {
-        this.selectedTile = clickedTile;
+      const col = Math.floor((pointer.x - startX) / this.TILE_SIZE);
+      const row = Math.floor((pointer.y - startY) / this.TILE_SIZE);
+
+      if (
+        row >= 0 &&
+        row < this.GRID_SIZE &&
+        col >= 0 &&
+        col < this.GRID_SIZE
+      ) {
+        const clickedTile = this.board[row][col];
+
+        if (clickedTile) {
+          this.selectedTile = clickedTile;
+        }
       }
     });
 
