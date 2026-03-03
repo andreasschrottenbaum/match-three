@@ -1,86 +1,109 @@
 import { Scene, GameObjects } from "phaser";
 
-export class GameOverOverlay extends GameObjects.Container {
-  constructor(scene: Scene, score: number, onRestart: () => void) {
+/**
+ * A full-screen UI overlay displayed when no moves are left.
+ */
+export class GameOverOverlay {
+  private container: GameObjects.Container;
+
+  /**
+   * @param scene - The parent Phaser scene.
+   * @param finalScore - The player's total score.
+   * @param onRestart - Callback function when the restart button is clicked.
+   */
+  constructor(
+    private scene: Scene,
+    finalScore: number,
+    onRestart: () => void,
+  ) {
     const { width, height } = scene.cameras.main;
-    super(scene, 0, 0);
 
-    this.setDepth(100).setAlpha(0);
+    // 1. Background Dimmer
+    const bg = scene.add.rectangle(0, 0, width, height, 0x000000, 0.7);
+    bg.setOrigin(0);
+    bg.setInteractive(); // Blocks input to the board underneath
 
-    // 1. Background
-    const overlay = scene.add
-      .rectangle(0, 0, width, height, 0x000000, 0.7)
-      .setOrigin(0);
-
-    // 2. Panel
-    const panelW = Math.min(width * 0.8, 400);
-    const panelH = 300;
-    const panel = scene.add
-      .rectangle(width / 2, height / 2, panelW, panelH, 0xffffff, 1)
-      .setStrokeStyle(4, 0x4a90e2);
-
-    // 3. Texts
-    const title = scene.make
-      .text({
-        x: width / 2,
-        y: height / 2 - 70,
-        text: "NO MORE MOVES",
-        style: {
-          fontSize: "32px",
-          color: "#333333",
-          fontStyle: "bold",
-        },
+    // 2. Title Text
+    const title = scene.add
+      .text(width / 2, height / 2 - 100, "NO MORE MOVES", {
+        fontSize: "64px",
+        fontStyle: "bold",
+        color: "#ffffff",
+        fontFamily: "Arial",
       })
       .setOrigin(0.5);
 
-    const scoreText = scene.make
-      .text({
-        x: width / 2,
-        y: height / 2,
-        text: `Final Score: ${score}`,
-        style: {
-          fontSize: "24px",
-          color: "#666666",
-        },
+    // 3. Score Text
+    const scoreText = scene.add
+      .text(width / 2, height / 2, `Score: ${finalScore}`, {
+        fontSize: "42px",
+        color: "#00ff00",
+        fontFamily: "Arial",
       })
       .setOrigin(0.5);
 
     // 4. Restart Button
-    const restartBtn = scene.make
-      .text({
-        x: width / 2,
-        y: height / 2 + 80,
-        text: "PLAY AGAIN",
-        style: {
-          fontSize: "28px",
-          color: "#ffffff",
-          backgroundColor: "#4a90e2",
-          padding: { x: 20, y: 10 },
-          fontStyle: "bold",
-        },
+    const buttonBg = scene.add
+      .rectangle(0, 80, 250, 80, 0xffffff, 1)
+      .setInteractive({ useHandCursor: true });
+
+    const buttonText = scene.add
+      .text(0, 80, "RESTART", {
+        fontSize: "32px",
+        color: "#000000",
+        fontStyle: "bold",
+        fontFamily: "Arial",
       })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .on("pointerover", () =>
-        restartBtn.setStyle({ backgroundColor: "#357abd" }),
-      )
-      .on("pointerout", () =>
-        restartBtn.setStyle({ backgroundColor: "#4a90e2" }),
-      )
-      .on("pointerdown", () => onRestart());
+      .setOrigin(0.5);
 
-    // Add everything to the container
-    this.add([overlay, panel, title, scoreText, restartBtn]);
+    const buttonContainer = scene.add.container(width / 2, height / 2 + 100, [
+      buttonBg,
+      buttonText,
+    ]);
 
-    // Add the container to the scene
-    scene.add.existing(this);
+    // 5. Button Interactions
+    buttonBg.on("pointerover", () => buttonBg.setFillStyle(0xdddddd));
+    buttonBg.on("pointerout", () => buttonBg.setFillStyle(0xffffff));
+    buttonBg.on("pointerdown", () => {
+      this.hide();
+      onRestart();
+    });
 
-    // Fade-In Animation
-    scene.tweens.add({
-      targets: this,
+    // Main Container to manage the whole UI
+    this.container = scene.add.container(0, 0, [
+      bg,
+      title,
+      scoreText,
+      buttonContainer,
+    ]);
+    this.container.setAlpha(0);
+    this.container.setDepth(1000); // Ensure it's on top of everything
+
+    this.show();
+  }
+
+  /**
+   * Smoothly fades in the overlay.
+   */
+  private show(): void {
+    this.scene.tweens.add({
+      targets: this.container,
       alpha: 1,
       duration: 500,
       ease: "Power2",
+    });
+  }
+
+  /**
+   * Smoothly fades out and destroys the overlay.
+   */
+  private hide(): void {
+    this.scene.tweens.add({
+      targets: this.container,
+      alpha: 0,
+      duration: 300,
+      ease: "Power2",
+      onComplete: () => this.container.destroy(),
     });
   }
 }
