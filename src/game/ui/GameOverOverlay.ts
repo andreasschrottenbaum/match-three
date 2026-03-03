@@ -1,16 +1,13 @@
 import { Scene, GameObjects } from "phaser";
 
 /**
- * A full-screen UI overlay displayed when no moves are left.
+ * A responsive full-screen UI overlay displayed when no moves are left.
  */
 export class GameOverOverlay {
   private container: GameObjects.Container;
+  private bg: GameObjects.Rectangle;
+  private contentContainer: GameObjects.Container;
 
-  /**
-   * @param scene - The parent Phaser scene.
-   * @param finalScore - The player's total score.
-   * @param onRestart - Callback function when the restart button is clicked.
-   */
   constructor(
     private scene: Scene,
     finalScore: number,
@@ -18,14 +15,15 @@ export class GameOverOverlay {
   ) {
     const { width, height } = scene.cameras.main;
 
-    // 1. Background Dimmer
-    const bg = scene.add.rectangle(0, 0, width, height, 0x000000, 0.7);
-    bg.setOrigin(0);
-    bg.setInteractive(); // Blocks input to the board underneath
+    // 1. Background Dimmer (Full screen)
+    this.bg = scene.add
+      .rectangle(0, 0, width, height, 0x000000, 0.7)
+      .setOrigin(0)
+      .setInteractive(); // Block input
 
-    // 2. Title Text
+    // 2. Content Container (Centered elements)
     const title = scene.add
-      .text(width / 2, height / 2 - 100, "NO MORE MOVES", {
+      .text(0, -100, "NO MORE MOVES", {
         fontSize: "64px",
         fontStyle: "bold",
         color: "#ffffff",
@@ -33,22 +31,21 @@ export class GameOverOverlay {
       })
       .setOrigin(0.5);
 
-    // 3. Score Text
     const scoreText = scene.add
-      .text(width / 2, height / 2, `Score: ${finalScore}`, {
+      .text(0, 0, `Score: ${finalScore}`, {
         fontSize: "42px",
         color: "#00ff00",
         fontFamily: "Arial",
       })
       .setOrigin(0.5);
 
-    // 4. Restart Button
-    const buttonBg = scene.add
-      .rectangle(0, 80, 250, 80, 0xffffff, 1)
+    // 3. Restart Button
+    const btnBg = scene.add
+      .rectangle(0, 100, 250, 80, 0xffffff, 1)
       .setInteractive({ useHandCursor: true });
 
-    const buttonText = scene.add
-      .text(0, 80, "RESTART", {
+    const btnText = scene.add
+      .text(0, 100, "RESTART", {
         fontSize: "32px",
         color: "#000000",
         fontStyle: "bold",
@@ -56,35 +53,48 @@ export class GameOverOverlay {
       })
       .setOrigin(0.5);
 
-    const buttonContainer = scene.add.container(width / 2, height / 2 + 100, [
-      buttonBg,
-      buttonText,
-    ]);
-
-    // 5. Button Interactions
-    buttonBg.on("pointerover", () => buttonBg.setFillStyle(0xdddddd));
-    buttonBg.on("pointerout", () => buttonBg.setFillStyle(0xffffff));
-    buttonBg.on("pointerdown", () => {
-      this.hide();
-      onRestart();
-    });
-
-    // Main Container to manage the whole UI
-    this.container = scene.add.container(0, 0, [
-      bg,
+    // Grouping central UI elements
+    this.contentContainer = scene.add.container(width / 2, height / 2, [
       title,
       scoreText,
-      buttonContainer,
+      btnBg,
+      btnText,
     ]);
-    this.container.setAlpha(0);
-    this.container.setDepth(1000); // Ensure it's on top of everything
+
+    // 4. Interactions
+    btnBg.on("pointerover", () => btnBg.setFillStyle(0xdddddd));
+    btnBg.on("pointerout", () => btnBg.setFillStyle(0xffffff));
+    btnBg.on("pointerdown", () => {
+      this.scene.scale.off("resize", this.reposition, this); // Clean up listener
+      this.hide(onRestart);
+    });
+
+    // Main Container
+    this.container = scene.add.container(0, 0, [
+      this.bg,
+      this.contentContainer,
+    ]);
+    this.container.setAlpha(0).setDepth(2000);
+
+    // 5. Listen for Resize
+    this.scene.scale.on("resize", this.reposition, this);
 
     this.show();
   }
 
   /**
-   * Smoothly fades in the overlay.
+   * Adjusts UI positions when the screen size changes.
    */
+  private reposition(): void {
+    const { width, height } = this.scene.cameras.main;
+
+    // Resize background to cover new screen dimensions
+    this.bg.setSize(width, height);
+
+    // Re-center the content group
+    this.contentContainer.setPosition(width / 2, height / 2);
+  }
+
   private show(): void {
     this.scene.tweens.add({
       targets: this.container,
@@ -94,16 +104,16 @@ export class GameOverOverlay {
     });
   }
 
-  /**
-   * Smoothly fades out and destroys the overlay.
-   */
-  private hide(): void {
+  private hide(onComplete: () => void): void {
     this.scene.tweens.add({
       targets: this.container,
       alpha: 0,
       duration: 300,
       ease: "Power2",
-      onComplete: () => this.container.destroy(),
+      onComplete: () => {
+        this.container.destroy();
+        onComplete();
+      },
     });
   }
 }
