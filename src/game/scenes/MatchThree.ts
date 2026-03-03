@@ -25,8 +25,6 @@ export class MatchThree extends Scene {
   private shuffleButtonContainer!: Phaser.GameObjects.Container;
   private settingsButton!: Phaser.GameObjects.Text;
 
-  private debugText: Phaser.GameObjects.Text | null = null;
-
   private scoreManager!: ScoreManager;
   private inputManager!: InputManager;
   private boardManager!: BoardManager;
@@ -133,16 +131,6 @@ export class MatchThree extends Scene {
     this.createSettingsButton();
 
     this.scale.on("resize", () => {
-      const { width, height } = this.scale;
-      if (this.debugText) {
-        this.debugText.setText([
-          `Screen: ${width}x${height}`,
-          `TileSize: ${this.TILE_SIZE.toFixed(1)}`,
-          `Offset: X:${this.offsetX.toFixed(1)} Y:${this.offsetY.toFixed(1)}`,
-          `Aspect: ${(width / height).toFixed(2)}`,
-        ]);
-      }
-
       this.time.delayedCall(500, () => {
         this.scale.refresh();
 
@@ -164,16 +152,6 @@ export class MatchThree extends Scene {
         this.repositionUI();
       });
     });
-
-    // In create()
-    this.debugText = this.add
-      .text(20, 60, "", {
-        fontSize: "14px",
-        color: "#00ff00",
-        backgroundColor: "#000000aa",
-        fontFamily: "monospace",
-      })
-      .setDepth(5000);
   }
 
   private calculateLayout(): void {
