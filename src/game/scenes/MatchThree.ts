@@ -133,7 +133,7 @@ export class MatchThree extends Scene {
     this.scale.on("resize", () => {
       // Add a tiny delay to let the browser finish the rotation animation
       // and report the correct final dimensions
-      this.time.delayedCall(500, () => {
+      this.time.delayedCall(1500, () => {
         this.calculateLayout();
         this.cameras.main.setSize(this.scale.width, this.scale.height);
 
