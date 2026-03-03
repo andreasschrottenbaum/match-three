@@ -356,7 +356,7 @@ export class MatchThree extends Scene {
     }
 
     if (this.settingsButton) {
-      this.settingsButton.setPosition(width - 50, 50);
+      this.settingsButton.setPosition(50, height - 50);
     }
   }
 }
