@@ -227,6 +227,62 @@ class BoardLogic {
     }
     return grid;
   }
+
+  /**
+   * Iteratively replaces tiles that are part of a match until the grid is stable.
+   * Purely operates on numeric data.
+   * @param grid - The grid to stabilize.
+   * @param typeCount - Number of available tile types.
+   * @param randomFn - Random number generator function.
+   */
+  static resolveInitialMatchesInGrid(
+    grid: TileID[][],
+    typeCount: number,
+    randomFn: () => number = Math.random,
+  ): void {
+    let matches = this.getAllMatches(grid);
+    let safetyNet = 0;
+
+    while (matches.length > 0 && safetyNet < 100) {
+      safetyNet++;
+      matches.forEach((pos) => {
+        grid[pos.row][pos.col] = Math.floor(randomFn() * typeCount);
+      });
+      matches = this.getAllMatches(grid);
+    }
+  }
+
+  /**
+   * Shuffles the current grid until at least one valid move is available.
+   * @param grid - The current grid state.
+   * @param randomFn - Random number generator.
+   * @returns A new shuffled grid.
+   */
+  static shuffleGrid(
+    grid: TileID[][],
+    randomFn: () => number = Math.random,
+  ): TileID[][] {
+    const rows = grid.length;
+    const cols = grid[0].length;
+    const flatGrid = grid.flat();
+    let attempts = 0;
+
+    do {
+      // Fisher-Yates Shuffle
+      for (let i = flatGrid.length - 1; i > 0; i--) {
+        const j = Math.floor(randomFn() * (i + 1));
+        [flatGrid[i], flatGrid[j]] = [flatGrid[j], flatGrid[i]];
+      }
+
+      // Convert back to 2D array
+      for (let i = 0; i < rows; i++) {
+        grid[i] = flatGrid.slice(i * cols, (i + 1) * cols);
+      }
+      attempts++;
+    } while (!this.hasValidMoves(grid) && attempts < 100);
+
+    return grid;
+  }
 }
 
 export { BoardLogic };

@@ -1,4 +1,4 @@
-import { Scene } from "phaser";
+import { Scene, Math as PMath } from "phaser";
 import { BoardLogic } from "../logic/BoardLogic";
 import { ScoreManager } from "../entities/ScoreManager";
 import { InputManager } from "../events/InputManager";
@@ -8,13 +8,17 @@ import { GameOverOverlay } from "../ui/GameOverOverlay";
 
 /**
  * Main game scene that orchestrates managers and game flow.
+ * Handles the high-level game state and UI triggers.
  */
 export class MatchThree extends Scene {
   private readonly GRID_SIZE = 8;
-  private readonly TYPE_COUNT = 12;
+  private readonly TYPE_COUNT = 4;
   private TILE_SIZE = 128;
   private offsetX = 0;
   private offsetY = 0;
+
+  private shuffleCharges = 3;
+  private shuffleButtonText!: Phaser.GameObjects.Text;
 
   private scoreManager!: ScoreManager;
   private inputManager!: InputManager;
@@ -26,9 +30,9 @@ export class MatchThree extends Scene {
   }
 
   /**
-   * Pre-calculates layout dimensions.
+   * Initializes layout constants based on current screen dimensions.
    */
-  init() {
+  init(): void {
     this.TILE_SIZE = (this.cameras.main.width * 0.8) / this.GRID_SIZE;
     const offsets = GridUtils.getGridOffsets(
       this.cameras.main.width,
@@ -41,19 +45,18 @@ export class MatchThree extends Scene {
   }
 
   /**
-   * Loads the assets.
+   * Loads necessary visual assets.
    */
   preload(): void {
     this.load.spritesheet("tiles", "assets/spritesheet.png", {
       frameWidth: 185,
       frameHeight: 185,
     });
-
     this.load.image("spark", "assets/spark.png");
   }
 
   /**
-   * Initializes managers and starts the board generation.
+   * Bootstraps the game managers and the initial board state.
    */
   create(): void {
     this.scoreManager = new ScoreManager(this);
@@ -70,6 +73,7 @@ export class MatchThree extends Scene {
       },
       {
         onScore: (pts, x, y) => this.scoreManager.addPoints(pts, x, y),
+        onCombo: (combo, x, y) => this.showComboText(combo, x, y),
         onMatchExplode: (x, y) => this.emitter.explode(10, x, y),
         onSequenceComplete: (hasMoves) => {
           if (!hasMoves) this.showGameOverUI();
@@ -99,23 +103,48 @@ export class MatchThree extends Scene {
     );
 
     this.setupBoard();
+    this.createShuffleButton();
   }
 
   /**
-   * Interface for InputManager to retrieve tiles from the board.
+   * Displays a rising text effect when a combo is achieved.
+   * @param combo - The current multiplier.
+   * @param x - World X position.
+   * @param y - World Y position.
    */
-  public getTileAt(row: number, col: number) {
-    return this.boardManager.getTileAt(row, col);
+  private showComboText(combo: number, x: number, y: number): void {
+    const messages = ["GREAT!", "SUPER!", "FANTASTIC!", "UNBELIEVABLE!"];
+    const msg = messages[PMath.Clamp(combo - 2, 0, messages.length - 1)];
+
+    const text = this.add
+      .text(x, y, `${msg}\nx${combo}`, {
+        fontSize: "48px",
+        fontStyle: "bold",
+        color: "#ffcc00",
+        stroke: "#000",
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5)
+      .setDepth(2000);
+
+    this.tweens.add({
+      targets: text,
+      y: y - 120,
+      alpha: 0,
+      scale: 1.4,
+      duration: 1000,
+      onComplete: () => text.destroy(),
+    });
   }
 
   /**
-   * Handles the generation of a valid starting board.
+   * Generates a valid initial board without matches and with available moves.
    */
   private setupBoard(): void {
+    let numericGrid: number[][] = [];
     let isValidStart = false;
     let attempts = 0;
-    const MAX_ATTEMPTS = 100;
-    let numericGrid: number[][] = [];
+    const MAX_ATTEMPTS = 200;
 
     while (!isValidStart && attempts < MAX_ATTEMPTS) {
       attempts++;
@@ -123,36 +152,38 @@ export class MatchThree extends Scene {
         this.GRID_SIZE,
         this.GRID_SIZE,
         this.TYPE_COUNT,
-        () => Phaser.Math.RND.frac(),
+        () => PMath.RND.frac(),
       );
+
+      BoardLogic.resolveInitialMatchesInGrid(numericGrid, this.TYPE_COUNT, () =>
+        PMath.RND.frac(),
+      );
+
       if (BoardLogic.hasValidMoves(numericGrid)) {
         isValidStart = true;
       }
     }
 
-    this.boardManager.createVisualBoard(numericGrid);
-    this.resolveInitialMatches();
-  }
-
-  /**
-   * Cleans up any matches that exist at game start.
-   */
-  private resolveInitialMatches(): void {
-    let numericGrid = this.boardManager.getNumericGrid();
-    let matches = BoardLogic.getAllMatches(numericGrid);
-
-    while (matches.length > 0) {
-      matches.forEach((pos) => {
-        const newID = Math.floor(Phaser.Math.RND.frac() * this.TYPE_COUNT);
-        this.boardManager.getTileAt(pos.row, pos.col)?.updateVisual(newID);
-      });
-      numericGrid = this.boardManager.getNumericGrid();
-      matches = BoardLogic.getAllMatches(numericGrid);
+    if (!isValidStart) {
+      console.warn(
+        "Could not create a valid board. Checking TYPE_COUNT/GRID_SIZE ratios.",
+      );
     }
+
+    this.boardManager.createVisualBoard(numericGrid);
   }
 
   /**
-   * Shows the game over screen.
+   * Proxy method for the InputManager to access tiles from the board.
+   * @param row - Grid row.
+   * @param col - Grid column.
+   */
+  public getTileAt(row: number, col: number) {
+    return this.boardManager.getTileAt(row, col);
+  }
+
+  /**
+   * Triggers the Game Over UI overlay.
    */
   private showGameOverUI(): void {
     new GameOverOverlay(this, this.scoreManager.currentScore, () =>
@@ -161,18 +192,66 @@ export class MatchThree extends Scene {
   }
 
   /**
-   * Configures the particle emitter for match effects.
+   * Configures the particle emitter for explosion effects.
    */
   private setupParticles(): void {
     this.emitter = this.add.particles(0, 0, "spark", {
       speed: { min: 80, max: 200 },
-      scale: { start: 1.5, end: 0 },
-      alpha: { start: 1, end: 0 },
-      lifespan: 800,
-      gravityY: 300,
-      rotate: { min: 0, max: 360 },
-      blendMode: "ADD",
+      scale: { start: 1, end: 0 },
+      lifespan: 600,
       emitting: false,
     });
+  }
+
+  /**
+   * Creates a simple button to trigger the shuffle logic.
+   */
+  private createShuffleButton(): void {
+    const x = this.cameras.main.width - 150;
+    const y = this.cameras.main.height - 80;
+
+    const btnBg = this.add
+      .rectangle(0, 0, 200, 60, 0x333333)
+      .setInteractive({ useHandCursor: true });
+    this.shuffleButtonText = this.add
+      .text(0, 0, `SHUFFLE (${this.shuffleCharges})`, {
+        fontSize: "24px",
+        color: "#ffffff",
+      })
+      .setOrigin(0.5);
+
+    this.add.container(x, y, [btnBg, this.shuffleButtonText]);
+
+    btnBg.on("pointerdown", () => this.handleShuffle());
+  }
+
+  /**
+   * Orchestrates the shuffle process if charges are available.
+   */
+  private handleShuffle(): void {
+    if (this.shuffleCharges <= 0 || !this.inputManager.getEnabled()) return;
+
+    this.shuffleCharges--;
+    this.shuffleButtonText.setText(`SHUFFLE (${this.shuffleCharges})`);
+
+    this.inputManager.setEnabled(false);
+
+    // 1. Logisches Grid holen und mischen
+    const currentGrid = this.boardManager.getNumericGrid();
+    const shuffledGrid = BoardLogic.shuffleGrid(currentGrid, () =>
+      PMath.RND.frac(),
+    );
+
+    // 2. Visuell aktualisieren
+    this.boardManager.shuffleVisuals(shuffledGrid);
+
+    // 3. Kurz warten und Input wieder freigeben
+    this.time.delayedCall(500, () => {
+      this.inputManager.setEnabled(true);
+    });
+
+    if (this.shuffleCharges === 0) {
+      this.shuffleButtonText.setColor("#666666");
+    }
   }
 }

@@ -2,10 +2,10 @@ import { Scene } from "phaser";
 import { GameTile } from "./GameTile";
 import { BoardLogic } from "../logic/BoardLogic";
 import { GridUtils } from "../logic/GridUtils";
-import type { TileID } from "../types";
+import { TileID } from "../types";
 
 /**
- * Configuration interface for the BoardManager layout and logic.
+ * Configuration for the BoardManager layout and game rules.
  */
 export interface BoardConfig {
   gridSize: number;
@@ -16,69 +16,96 @@ export interface BoardConfig {
 }
 
 /**
- * Manages the visual grid of tiles, orchestrates animations,
- * and communicates with BoardLogic for match detection.
+ * Handles the visual grid, tile animations, and orchestrates match logic.
+ * Acts as the bridge between the Scene and the logical board state.
  */
 export class BoardManager {
+  /** 2D Array holding the visual GameTile instances */
   private board: (GameTile | null)[][] = [];
 
   /**
-   * @param scene - The parent Phaser scene.
+   * @param scene - The parent Phaser Scene.
    * @param config - Layout and grid configuration.
-   * @param callbacks - Hooks for external systems (Score, Particles, GameState).
+   * @param callbacks - Event hooks for UI and Game State updates.
    */
   constructor(
     private scene: Scene,
     private config: BoardConfig,
     private callbacks: {
       onScore: (points: number, x: number, y: number) => void;
+      onCombo: (combo: number, x: number, y: number) => void;
       onMatchExplode: (x: number, y: number) => void;
       onSequenceComplete: (hasMoves: boolean) => void;
     },
   ) {}
 
   /**
-   * Returns the tile at a specific grid position.
+   * Triggers a browser-level vibration for haptic feedback if supported.
+   * @param duration - Length of the vibration in ms.
    */
-  public getTileAt(row: number, col: number): GameTile | null {
-    return this.board[row][col];
+  private triggerHapticFeedback(duration: number = 15): void {
+    if ("vibrate" in navigator) {
+      navigator.vibrate(duration);
+    }
   }
 
   /**
-   * Converts the visual board into a numeric ID representation for logic checks.
-   */
-  public getNumericGrid(): TileID[][] {
-    return this.board.map((row) =>
-      row.map((tile) => (tile ? tile.tileID : -1)),
-    );
-  }
-
-  /**
-   * Clears old tiles and instantiates new GameTile objects based on a grid plan.
+   * Creates the visual board with a cascading drop-in effect.
+   * @param numericGrid - The pre-calculated stable grid IDs.
    */
   public createVisualBoard(numericGrid: number[][]): void {
+    // Cleanup existing tiles if any
     this.board.forEach((row) => row.forEach((tile) => tile?.destroy()));
     this.board = [];
 
     for (let row = 0; row < this.config.gridSize; row++) {
       this.board[row] = [];
       for (let col = 0; col < this.config.gridSize; col++) {
-        const worldPos = this.getWorldPos(row, col);
-        this.board[row][col] = new GameTile(
+        const finalPos = this.getWorldPos(row, col);
+        const startY = finalPos.y - 600;
+
+        const tile = new GameTile(
           this.scene,
-          worldPos.x,
-          worldPos.y,
+          finalPos.x,
+          startY,
           numericGrid[row][col],
           row,
           col,
           this.config.tileSize,
         );
+
+        tile.setAlpha(0);
+        this.board[row][col] = tile;
+
+        // Cascade animation
+        this.scene.tweens.add({
+          targets: tile,
+          y: finalPos.y,
+          alpha: 1,
+          duration: 700,
+          delay: row * 80 + col * 40,
+          ease: "Back.easeOut",
+          onComplete: () => {
+            // Signal readiness when the last tile has landed
+            if (
+              row === this.config.gridSize - 1 &&
+              col === this.config.gridSize - 1
+            ) {
+              this.callbacks.onSequenceComplete(true);
+            }
+          },
+        });
       }
     }
   }
 
   /**
-   * Swaps two tiles visually and logically. Reverts if no match is found.
+   * Handles the swapping animation between two tiles and initiates match checking.
+   * @param row1 - Starting row.
+   * @param col1 - Starting column.
+   * @param row2 - Target row.
+   * @param col2 - Target column.
+   * @param isReverting - Whether this is a rollback of an invalid move.
    */
   public swapTiles(
     row1: number,
@@ -90,6 +117,7 @@ export class BoardManager {
     const tile1 = this.board[row1][col1]!;
     const tile2 = this.board[row2][col2]!;
 
+    // Logical Swap
     this.board[row1][col1] = tile2;
     this.board[row2][col2] = tile1;
 
@@ -111,6 +139,7 @@ export class BoardManager {
           if (matches.length > 0) {
             this.handleMatches(1);
           } else {
+            // No matches? Swap back!
             this.swapTiles(row2, col2, row1, col1, true);
           }
         } else {
@@ -121,7 +150,8 @@ export class BoardManager {
   }
 
   /**
-   * Processes matches: updates score, triggers explosions, and initiates gravity.
+   * Processes current matches, triggers score/vfx and starts gravity sequence.
+   * @param combo - Current chain reaction multiplier.
    */
   public handleMatches(combo: number): void {
     const numericGrid = this.getNumericGrid();
@@ -134,10 +164,17 @@ export class BoardManager {
       return;
     }
 
+    this.triggerHapticFeedback(10 + combo * 10);
+
     const points = BoardLogic.calculateScore(matches, combo);
     const firstMatch = matches[0];
     const scorePos = this.getWorldPos(firstMatch.row, firstMatch.col);
+
     this.callbacks.onScore(points, scorePos.x, scorePos.y);
+
+    if (combo > 1) {
+      this.callbacks.onCombo(combo, scorePos.x, scorePos.y);
+    }
 
     matches.forEach((pos) => {
       const tile = this.board[pos.row][pos.col];
@@ -148,11 +185,13 @@ export class BoardManager {
       }
     });
 
+    // Short delay before tiles fall down
     this.scene.time.delayedCall(250, () => this.applyGravity(combo));
   }
 
   /**
-   * Applies gravity to empty slots and spawns new tiles at the top.
+   * Moves existing tiles down and spawns new ones to fill gaps.
+   * @param combo - Current combo to pass to the next match check.
    */
   private applyGravity(combo: number): void {
     const { moves, newTiles } = BoardLogic.getGravityPlan(
@@ -160,6 +199,7 @@ export class BoardManager {
     );
     let maxDelay = 0;
 
+    // Move existing tiles
     moves.forEach((move) => {
       const tile = this.board[move.fromRow][move.col]!;
       const worldPos = this.getWorldPos(move.toRow, move.col);
@@ -171,6 +211,7 @@ export class BoardManager {
       tile.animateTo(move.toRow, move.col, worldPos.x, worldPos.y, duration);
     });
 
+    // Spawn new tiles
     newTiles.forEach((slot) => {
       const tileID = Math.floor(Math.random() * this.config.typeCount);
       const finalPos = this.getWorldPos(slot.row, slot.col);
@@ -189,6 +230,7 @@ export class BoardManager {
       newTile.animateTo(slot.row, slot.col, finalPos.x, finalPos.y, duration);
     });
 
+    // Wait for all animations to finish before checking for new matches
     this.scene.time.delayedCall(maxDelay + 50, () => {
       const nextMatches = BoardLogic.getAllMatches(this.getNumericGrid());
       if (nextMatches.length > 0) {
@@ -212,5 +254,48 @@ export class BoardManager {
       this.config.offsetX,
       this.config.offsetY,
     );
+  }
+
+  /**
+   * Returns the tile at a specific grid position.
+   * Safely handles out-of-bounds requests from InputManager.
+   * @param row - Grid row.
+   * @param col - Grid column.
+   */
+  public getTileAt(row: number, col: number): GameTile | null {
+    if (this.board[row] && this.board[row][col] !== undefined) {
+      return this.board[row][col];
+    }
+    return null;
+  }
+
+  /**
+   * Converts the current visual board into a numeric grid for logic processing.
+   */
+  public getNumericGrid(): TileID[][] {
+    return this.board.map((r) => r.map((t) => (t ? t.tileID : -1)));
+  }
+
+  /**
+   * Visually shuffles all tiles to their new IDs and plays a "pop" animation.
+   * @param newNumericGrid - The pre-calculated shuffled grid IDs.
+   */
+  public shuffleVisuals(newNumericGrid: TileID[][]): void {
+    for (let row = 0; row < this.config.gridSize; row++) {
+      for (let col = 0; col < this.config.gridSize; col++) {
+        const tile = this.board[row][col];
+        if (tile) {
+          tile.updateVisual(newNumericGrid[row][col]);
+
+          this.scene.tweens.add({
+            targets: tile,
+            scale: 1.4,
+            duration: 150,
+            yoyo: true,
+            ease: "Quad.easeOut",
+          });
+        }
+      }
+    }
   }
 }
