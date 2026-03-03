@@ -364,10 +364,7 @@ export class MatchThree extends Scene {
     }
 
     if (this.shuffleButtonContainer) {
-      this.shuffleButtonContainer.setPosition(
-        width - margin - 40,
-        height - margin - 40,
-      );
+      this.shuffleButtonContainer.setPosition(width - 150, height - 80);
     }
   }
 }
