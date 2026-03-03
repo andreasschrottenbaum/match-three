@@ -37,7 +37,11 @@ export class BoardManager {
       onMatchExplode: (x: number, y: number) => void;
       onSequenceComplete: (hasMoves: boolean) => void;
     },
-  ) {}
+  ) {
+    this.board = Array.from({ length: config.gridSize }, () =>
+      Array(config.gridSize).fill(null),
+    );
+  }
 
   /**
    * Triggers a browser-level vibration for haptic feedback if supported.
@@ -295,6 +299,40 @@ export class BoardManager {
             ease: "Quad.easeOut",
           });
         }
+      }
+    }
+  }
+
+  /**
+   * BoardManager.ts -> updateLayout
+   */
+  public updateLayout(newSize: number, newX: number, newY: number): void {
+    this.config.tileSize = newSize;
+    this.config.offsetX = newX;
+    this.config.offsetY = newY;
+
+    const targetScale = newSize / 185;
+
+    for (let row = 0; row < this.config.gridSize; row++) {
+      for (let col = 0; col < this.config.gridSize; col++) {
+        const tile = this.board[row][col];
+        if (!tile) continue;
+
+        // Stop current animations to prevent scale/position conflicts
+        this.scene.tweens.killTweensOf(tile);
+
+        tile.setBaseScale(targetScale);
+
+        const pos = this.getWorldPos(row, col);
+        tile.setDepth(10);
+
+        this.scene.tweens.add({
+          targets: tile,
+          x: pos.x,
+          y: pos.y,
+          duration: 400,
+          ease: "Cubic.easeOut",
+        });
       }
     }
   }

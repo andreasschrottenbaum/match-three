@@ -125,4 +125,14 @@ export class InputManager {
       this.selectedTile = null;
     });
   }
+
+  /**
+   * Updates internal coordinate mapping for input detection.
+   */
+  public updateLayout(newSize: number, newX: number, newY: number): void {
+    // Updating the reference passed in the constructor
+    this.gridConfig.tileSize = newSize;
+    this.gridConfig.offsetX = newX;
+    this.gridConfig.offsetY = newY;
+  }
 }

@@ -9,6 +9,8 @@ export class GameTile extends GameObjects.Container {
   public tileID: TileID;
   /** The internal sprite showing the tile texture */
   private sprite: GameObjects.Sprite;
+  /** Track current responsive scale */
+  private baseScale: number = 1;
   /** Current logical position on the board */
   public gridPosition: GridPosition;
 
@@ -31,13 +33,15 @@ export class GameTile extends GameObjects.Container {
     size: number,
   ) {
     super(scene, x, y);
-
     this.tileID = id;
     this.gridPosition = { row, col };
 
     this.sprite = scene.add.sprite(0, 0, "tiles", id);
-    this.sprite.setDisplaySize(size, size);
+    this.sprite.setOrigin(0.5);
     this.add(this.sprite);
+
+    this.baseScale = size / 185;
+    this.setScale(this.baseScale);
 
     scene.add.existing(this);
   }
@@ -52,15 +56,23 @@ export class GameTile extends GameObjects.Container {
   }
 
   /**
+   * Updates the base scale after a resize.
+   */
+  public setBaseScale(s: number): void {
+    this.baseScale = s;
+    // If not currently selected, apply immediately
+    this.setScale(s);
+  }
+
+  /**
    * Toggles the selection state (scale up and outline).
    */
   public setSelected(selected: boolean): void {
     if (selected) {
       this.scene.children.bringToTop(this);
-
       this.scene.tweens.add({
         targets: this,
-        scale: 1.2,
+        scale: this.baseScale * 1.2, // Scale relative to current base
         duration: 100,
         ease: "Back.easeOut",
       });
@@ -68,7 +80,7 @@ export class GameTile extends GameObjects.Container {
     } else {
       this.scene.tweens.add({
         targets: this,
-        scale: 1.0,
+        scale: this.baseScale, // Return to base
         duration: 100,
         ease: "Power2",
       });

@@ -22,6 +22,8 @@ export class MatchThree extends Scene {
 
   private shuffleCharges!: number;
   private shuffleButtonText!: Phaser.GameObjects.Text;
+  private shuffleButtonContainer!: Phaser.GameObjects.Container;
+  private settingsButton!: Phaser.GameObjects.Text;
 
   private scoreManager!: ScoreManager;
   private inputManager!: InputManager;
@@ -74,8 +76,11 @@ export class MatchThree extends Scene {
    * Bootstraps the game managers and the initial board state.
    */
   create(): void {
+    this.calculateLayout();
+
+    this.cameras.main.setSize(this.scale.width, this.scale.height);
+
     this.scoreManager = new ScoreManager(this);
-    this.setupParticles();
 
     this.boardManager = new BoardManager(
       this,
@@ -97,6 +102,8 @@ export class MatchThree extends Scene {
       },
     );
 
+    this.boardManager.updateLayout(this.TILE_SIZE, this.offsetX, this.offsetY);
+
     this.inputManager = new InputManager(
       this,
       {
@@ -116,10 +123,59 @@ export class MatchThree extends Scene {
         );
       },
     );
+    this.inputManager.updateLayout(this.TILE_SIZE, this.offsetX, this.offsetY);
 
+    this.setupParticles();
     this.setupBoard();
     this.createShuffleButton();
     this.createSettingsButton();
+
+    this.scale.on("resize", () => {
+      this.calculateLayout();
+      this.cameras.main.setSize(this.scale.width, this.scale.height);
+
+      // Managers update existing objects
+      this.boardManager.updateLayout(
+        this.TILE_SIZE,
+        this.offsetX,
+        this.offsetY,
+      );
+      this.inputManager.updateLayout(
+        this.TILE_SIZE,
+        this.offsetX,
+        this.offsetY,
+      );
+
+      this.repositionUI();
+    });
+  }
+
+  private calculateLayout(): void {
+    const { width, height } = this.cameras.main;
+
+    // Wir lassen Platz für UI (Score oben, Buttons unten)
+    const verticalPadding = 200;
+    const horizontalPadding = 40;
+
+    const availableWidth = width - horizontalPadding;
+    const availableHeight = height - verticalPadding;
+
+    // TILE_SIZE so wählen, dass das Grid in BEIDE Richtungen passt
+    const maxTileW = availableWidth / this.GRID_SIZE;
+    const maxTileH = availableHeight / this.GRID_SIZE;
+
+    this.TILE_SIZE = Math.min(maxTileW, maxTileH);
+
+    // Zentrieren
+    const offsets = GridUtils.getGridOffsets(
+      width,
+      height,
+      this.GRID_SIZE,
+      this.TILE_SIZE,
+    );
+
+    this.offsetX = offsets.x;
+    this.offsetY = offsets.y;
   }
 
   /**
@@ -236,8 +292,10 @@ export class MatchThree extends Scene {
       })
       .setOrigin(0.5);
 
-    this.add.container(x, y, [btnBg, this.shuffleButtonText]);
-
+    this.shuffleButtonContainer = this.add.container(x, y, [
+      btnBg,
+      this.shuffleButtonText,
+    ]);
     btnBg.on("pointerdown", () => this.handleShuffle());
   }
 
@@ -275,7 +333,7 @@ export class MatchThree extends Scene {
    * Creates a simple button to toggle the Settings Menu.
    */
   private createSettingsButton(): void {
-    const btn = this.add
+    this.settingsButton = this.add
       .text(this.cameras.main.width - 50, 50, "⚙", {
         fontSize: "32px",
         color: "#ffffff",
@@ -283,9 +341,22 @@ export class MatchThree extends Scene {
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
-    btn.on("pointerdown", () => {
+    this.settingsButton.on("pointerdown", () => {
       this.inputManager.setEnabled(false);
       new SettingsOverlay(this);
     });
+  }
+
+  private repositionUI(): void {
+    const { width, height } = this.cameras.main;
+
+    // Move the whole container, not just the text
+    if (this.shuffleButtonContainer) {
+      this.shuffleButtonContainer.setPosition(width - 150, height - 80);
+    }
+
+    if (this.settingsButton) {
+      this.settingsButton.setPosition(width - 50, 50);
+    }
   }
 }
