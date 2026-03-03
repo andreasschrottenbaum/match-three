@@ -1,58 +1,83 @@
-import Phaser from "phaser";
+import { Scene, GameObjects } from "phaser";
 import type { TileID, GridPosition } from "../types";
 
 /**
- * Visual representation of a single tile in the ZenMatchThree game.
- * Extends Phaser's Sprite to display high-res assets in a grid.
+ * Visual representation of a single tile.
+ * Uses a Container to group the sprite and selection effects.
  */
-export class GameTile extends Phaser.GameObjects.Sprite {
+export class GameTile extends GameObjects.Container {
   public tileID: TileID;
+  /** The internal sprite showing the tile texture */
+  private sprite: GameObjects.Sprite;
+  /** Current logical position on the board */
   public gridPosition: GridPosition;
 
   /**
-   * @param scene - The Phaser Scene this tile belongs to.
-   * @param x - Initial horizontal world position (center).
-   * @param y - Initial vertical world position (center).
-   * @param id - The unique TileID determining the frame.
-   * @param row - Initial row index in the grid.
-   * @param col - Initial column index in the grid.
+   * @param scene - The Phaser Scene
+   * @param x - World X position
+   * @param y - World Y position
+   * @param tileID - The frame ID/Type of the tile
+   * @param row - Grid row
+   * @param col - Grid column
+   * @param size - Display size in pixels
    */
   constructor(
-    scene: Phaser.Scene,
+    scene: Scene,
     x: number,
     y: number,
     id: TileID,
     row: number,
     col: number,
-    targetSize: number,
+    size: number,
   ) {
-    super(scene, x, y, "tiles", id);
+    super(scene, x, y);
 
     this.tileID = id;
     this.gridPosition = { row, col };
 
-    const scaleFactor = targetSize / this.width;
-    this.setScale(scaleFactor);
+    this.sprite = scene.add.sprite(0, 0, "tiles", id);
+    this.sprite.setDisplaySize(size, size);
+    this.add(this.sprite);
 
-    // 2. Setup visual properties
-    this.setOrigin(0.5);
-    this.setInteractive();
-
-    // Add this object to the scene's display list
     scene.add.existing(this);
   }
 
   /**
-   * Updates the frame and ID (e.g., during board initialization).
-   * @param newID - The new TileID.
+   * Updates the tile's visual ID (frame).
+   * Used during initial board clearing.
    */
   public updateVisual(newID: TileID): void {
     this.tileID = newID;
-    this.setFrame(newID);
+    this.sprite.setFrame(newID);
   }
 
   /**
-   * Updates the internal grid position and starts a movement tween.
+   * Toggles the selection state (scale up and outline).
+   */
+  public setSelected(selected: boolean): void {
+    if (selected) {
+      this.scene.children.bringToTop(this);
+
+      this.scene.tweens.add({
+        targets: this,
+        scale: 1.2,
+        duration: 100,
+        ease: "Back.easeOut",
+      });
+      this.sprite.setTint(0xdddddd);
+    } else {
+      this.scene.tweens.add({
+        targets: this,
+        scale: 1.0,
+        duration: 100,
+        ease: "Power2",
+      });
+      this.sprite.clearTint();
+    }
+  }
+
+  /**
+   * Animates the tile to a new world position.
    */
   public animateTo(
     row: number,
@@ -62,30 +87,25 @@ export class GameTile extends Phaser.GameObjects.Sprite {
     duration: number = 300,
   ): void {
     this.gridPosition = { row, col };
-
     this.scene.tweens.add({
       targets: this,
-      x: x,
-      y: y,
-      duration: duration,
-      ease: "Back.easeOut", // A slight "Zen" bounce effect
-      easeParams: [1.5],
+      x,
+      y,
+      duration,
+      ease: "Back.easeOut",
     });
   }
 
   /**
    * Plays a "pop" animation and destroys the tile.
-   * More "juicy" now with scale-up before scale-down.
    */
   public popAndDestroy(): void {
-    const currentScale = this.scaleX;
-
     this.scene.tweens.add({
       targets: this,
-      scaleX: currentScale * 1.3,
-      scaleY: currentScale * 1.3,
+      scale: 0,
       alpha: 0,
       duration: 200,
+      ease: "Back.easeIn",
       onComplete: () => this.destroy(),
     });
   }
