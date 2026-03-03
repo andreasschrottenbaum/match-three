@@ -135,6 +135,7 @@ export class MatchThree extends Scene {
       if (this.isResizing) return;
 
       this.isResizing = true;
+      this.inputManager.setEnabled(false);
 
       this.time.delayedCall(150, () => {
         this.scale.refresh();
@@ -162,6 +163,7 @@ export class MatchThree extends Scene {
         this.repositionUI();
 
         this.isResizing = false;
+        this.inputManager.setEnabled(true);
       });
     });
   }
