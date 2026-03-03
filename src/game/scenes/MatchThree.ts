@@ -355,16 +355,19 @@ export class MatchThree extends Scene {
     const { width, height } = this.scale;
     const margin = 20;
 
-    // if (this.sco) {
-    //   this.scoreText.setPosition(margin, margin);
-    // }
+    if (this.scoreManager.element) {
+      this.scoreManager.element.setPosition(margin, margin);
+    }
 
     if (this.settingsButton) {
       this.settingsButton.setPosition(margin + 40, height - margin - 40);
     }
 
-    // if (this.shuffleButton) {
-    //   this.shuffleButton.setPosition(width - margin - 40, height - margin - 40);
-    // }
+    if (this.shuffleButtonContainer) {
+      this.shuffleButtonContainer.setPosition(
+        width - margin - 40,
+        height - margin - 40,
+      );
+    }
   }
 }

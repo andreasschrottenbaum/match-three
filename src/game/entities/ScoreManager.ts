@@ -71,4 +71,8 @@ export class ScoreManager {
   public get currentScore(): number {
     return this.score;
   }
+
+  public get element(): GameObjects.Text {
+    return this.scoreText;
+  }
 }
