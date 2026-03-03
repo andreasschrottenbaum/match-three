@@ -2,19 +2,13 @@ import { MatchThree } from "./scenes/MatchThree";
 import { Game, Scale, Types } from "phaser";
 import { version } from "../../package.json";
 
-const container = document.getElementById("game-container");
-const size = Math.min(
-  container?.clientWidth || 0,
-  container?.clientHeight || 0,
-);
-
 const config: Types.Core.GameConfig = {
   title: "Match Three",
   url: "https://andreasschrottenbaum.github.io/match-three/",
   version,
   parent: "game-container",
-  width: size,
-  height: size,
+  width: "100%",
+  height: "100%",
   transparent: true,
   scale: {
     mode: Scale.FIT,

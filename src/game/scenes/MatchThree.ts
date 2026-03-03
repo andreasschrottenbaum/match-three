@@ -36,10 +36,18 @@ export class MatchThree extends Scene {
    * Initializes layout constants based on current screen dimensions.
    */
   init(): void {
-    this.TILE_SIZE = (this.cameras.main.width * 0.8) / this.GRID_SIZE;
     this.GRID_SIZE = GameConfig.grid.size;
     this.TYPE_COUNT = GameConfig.grid.variety;
     this.shuffleCharges = GameConfig.grid.shuffleCharges;
+
+    const padding = 40;
+    const uiHeight = 200;
+
+    const maxTileW = (this.cameras.main.width - padding * 2) / this.GRID_SIZE;
+    const maxTileH =
+      (this.cameras.main.height - uiHeight - padding * 2) / this.GRID_SIZE;
+
+    this.TILE_SIZE = Math.min(maxTileW, maxTileH);
 
     const offsets = GridUtils.getGridOffsets(
       this.cameras.main.width,
