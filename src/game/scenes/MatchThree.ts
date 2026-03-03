@@ -25,6 +25,8 @@ export class MatchThree extends Scene {
   private shuffleButtonContainer!: Phaser.GameObjects.Container;
   private settingsButton!: Phaser.GameObjects.Text;
 
+  private debugText: Phaser.GameObjects.Text | null = null;
+
   private scoreManager!: ScoreManager;
   private inputManager!: InputManager;
   private boardManager!: BoardManager;
@@ -130,45 +132,48 @@ export class MatchThree extends Scene {
     this.createShuffleButton();
     this.createSettingsButton();
 
-    this.scale.on("resize", (gameSize: Phaser.Structs.Size) => {
-      this.cameras.main.setSize(gameSize.width, gameSize.height);
+    this.scale.on("resize", () => {
+      const { width, height } = this.scale;
+      if (this.debugText) {
+        this.debugText.setText([
+          `Screen: ${width}x${height}`,
+          `TileSize: ${this.TILE_SIZE.toFixed(1)}`,
+          `Offset: X:${this.offsetX.toFixed(1)} Y:${this.offsetY.toFixed(1)}`,
+          `Aspect: ${(width / height).toFixed(2)}`,
+        ]);
+      }
 
-      let attempts = 0;
-      const checkSize = setInterval(() => {
-        // const currentHeight = window.innerHeight;
+      this.time.delayedCall(500, () => {
+        this.scale.refresh();
 
-        if (attempts > 3) {
-          clearInterval(checkSize);
-          this.executeResize();
-        }
-        attempts++;
-      }, 250);
+        this.calculateLayout();
+
+        this.cameras.main.setSize(this.scale.width, this.scale.height);
+
+        this.boardManager.updateLayout(
+          this.TILE_SIZE,
+          this.offsetX,
+          this.offsetY,
+        );
+        this.inputManager.updateLayout(
+          this.TILE_SIZE,
+          this.offsetX,
+          this.offsetY,
+        );
+
+        this.repositionUI();
+      });
     });
-  }
 
-  private executeResize(): void {
-    const { width, height } = this.scale;
-
-    this.cameras.main.setSize(width, height);
-
-    this.calculateLayout();
-
-    if (this.boardManager) {
-      this.boardManager.updateLayout(
-        this.TILE_SIZE,
-        this.offsetX,
-        this.offsetY,
-      );
-    }
-    if (this.inputManager) {
-      this.inputManager.updateLayout(
-        this.TILE_SIZE,
-        this.offsetX,
-        this.offsetY,
-      );
-    }
-
-    this.repositionUI();
+    // In create()
+    this.debugText = this.add
+      .text(20, 60, "", {
+        fontSize: "14px",
+        color: "#00ff00",
+        backgroundColor: "#000000aa",
+        fontFamily: "monospace",
+      })
+      .setDepth(5000);
   }
 
   private calculateLayout(): void {
@@ -369,15 +374,19 @@ export class MatchThree extends Scene {
   }
 
   private repositionUI(): void {
-    const { width, height } = this.cameras.main;
+    const { width, height } = this.scale;
+    const margin = 20;
 
-    // Move the whole container, not just the text
-    if (this.shuffleButtonContainer) {
-      this.shuffleButtonContainer.setPosition(width - 150, height - 80);
-    }
+    // if (this.sco) {
+    //   this.scoreText.setPosition(margin, margin);
+    // }
 
     if (this.settingsButton) {
-      this.settingsButton.setPosition(50, height - 50);
+      this.settingsButton.setPosition(margin + 40, height - margin - 40);
     }
+
+    // if (this.shuffleButton) {
+    //   this.shuffleButton.setPosition(width - margin - 40, height - margin - 40);
+    // }
   }
 }
