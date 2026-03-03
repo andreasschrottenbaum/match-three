@@ -5,19 +5,22 @@ import { InputManager } from "../events/InputManager";
 import { BoardManager } from "../entities/BoardManager";
 import { GridUtils } from "../logic/GridUtils";
 import { GameOverOverlay } from "../ui/GameOverOverlay";
+import { GameConfig } from "../config/GameConfig";
+import { SettingsOverlay } from "../ui/SettingsOverlay";
 
 /**
  * Main game scene that orchestrates managers and game flow.
  * Handles the high-level game state and UI triggers.
  */
 export class MatchThree extends Scene {
-  private readonly GRID_SIZE = 8;
-  private readonly TYPE_COUNT = 4;
+  private GRID_SIZE = GameConfig.grid.size;
+  private TYPE_COUNT = GameConfig.grid.variety;
+
   private TILE_SIZE = 128;
   private offsetX = 0;
   private offsetY = 0;
 
-  private shuffleCharges = 3;
+  private shuffleCharges!: number;
   private shuffleButtonText!: Phaser.GameObjects.Text;
 
   private scoreManager!: ScoreManager;
@@ -34,6 +37,10 @@ export class MatchThree extends Scene {
    */
   init(): void {
     this.TILE_SIZE = (this.cameras.main.width * 0.8) / this.GRID_SIZE;
+    this.GRID_SIZE = GameConfig.grid.size;
+    this.TYPE_COUNT = GameConfig.grid.variety;
+    this.shuffleCharges = GameConfig.grid.shuffleCharges;
+
     const offsets = GridUtils.getGridOffsets(
       this.cameras.main.width,
       this.cameras.main.height,
@@ -104,6 +111,7 @@ export class MatchThree extends Scene {
 
     this.setupBoard();
     this.createShuffleButton();
+    this.createSettingsButton();
   }
 
   /**
@@ -211,7 +219,7 @@ export class MatchThree extends Scene {
     const y = this.cameras.main.height - 80;
 
     const btnBg = this.add
-      .rectangle(0, 0, 200, 60, 0x333333)
+      .rectangle(0, 0, 200, 60, GameConfig.ui.baseColor)
       .setInteractive({ useHandCursor: true });
     this.shuffleButtonText = this.add
       .text(0, 0, `SHUFFLE (${this.shuffleCharges})`, {
@@ -253,5 +261,23 @@ export class MatchThree extends Scene {
     if (this.shuffleCharges === 0) {
       this.shuffleButtonText.setColor("#666666");
     }
+  }
+
+  /**
+   * Creates a simple button to toggle the Settings Menu.
+   */
+  private createSettingsButton(): void {
+    const btn = this.add
+      .text(this.cameras.main.width - 50, 50, "⚙", {
+        fontSize: "32px",
+        color: "#ffffff",
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+
+    btn.on("pointerdown", () => {
+      this.inputManager.setEnabled(false);
+      new SettingsOverlay(this);
+    });
   }
 }
