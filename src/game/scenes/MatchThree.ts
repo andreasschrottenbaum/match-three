@@ -334,7 +334,7 @@ export class MatchThree extends Scene {
    */
   private createSettingsButton(): void {
     this.settingsButton = this.add
-      .text(this.cameras.main.width - 50, 50, "⚙", {
+      .text(50, this.cameras.main.height - 50, "⚙", {
         fontSize: "32px",
         color: "#ffffff",
       })

@@ -13,8 +13,3 @@ body {
   justify-content: center;
   align-items: center;
 }
-
-#game-container {
-  height: calc(100% - 80px);
-  margin-top: 80px;
-}
