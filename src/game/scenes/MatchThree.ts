@@ -130,28 +130,45 @@ export class MatchThree extends Scene {
     this.createShuffleButton();
     this.createSettingsButton();
 
-    this.scale.on("resize", () => {
-      // Add a tiny delay to let the browser finish the rotation animation
-      // and report the correct final dimensions
-      this.time.delayedCall(1500, () => {
-        this.calculateLayout();
-        this.cameras.main.setSize(this.scale.width, this.scale.height);
+    this.scale.on("resize", (gameSize: Phaser.Structs.Size) => {
+      this.cameras.main.setSize(gameSize.width, gameSize.height);
 
-        // Managers update existing objects
-        this.boardManager.updateLayout(
-          this.TILE_SIZE,
-          this.offsetX,
-          this.offsetY,
-        );
-        this.inputManager.updateLayout(
-          this.TILE_SIZE,
-          this.offsetX,
-          this.offsetY,
-        );
+      let attempts = 0;
+      const checkSize = setInterval(() => {
+        // const currentHeight = window.innerHeight;
 
-        this.repositionUI();
-      });
+        if (attempts > 3) {
+          clearInterval(checkSize);
+          this.executeResize();
+        }
+        attempts++;
+      }, 250);
     });
+  }
+
+  private executeResize(): void {
+    const { width, height } = this.scale;
+
+    this.cameras.main.setSize(width, height);
+
+    this.calculateLayout();
+
+    if (this.boardManager) {
+      this.boardManager.updateLayout(
+        this.TILE_SIZE,
+        this.offsetX,
+        this.offsetY,
+      );
+    }
+    if (this.inputManager) {
+      this.inputManager.updateLayout(
+        this.TILE_SIZE,
+        this.offsetX,
+        this.offsetY,
+      );
+    }
+
+    this.repositionUI();
   }
 
   private calculateLayout(): void {
