@@ -19,6 +19,7 @@ export class MatchThree extends Scene {
   private TILE_SIZE = 128;
   private offsetX = 0;
   private offsetY = 0;
+  private isResizing = false;
 
   private shuffleCharges!: number;
   private shuffleButtonText!: Phaser.GameObjects.Text;
@@ -131,12 +132,21 @@ export class MatchThree extends Scene {
     this.createSettingsButton();
 
     this.scale.on("resize", () => {
-      this.time.delayedCall(500, () => {
+      if (this.isResizing) return;
+
+      this.isResizing = true;
+
+      this.time.delayedCall(150, () => {
         this.scale.refresh();
 
         this.calculateLayout();
 
-        this.cameras.main.setSize(this.scale.width, this.scale.height);
+        if (
+          this.cameras.main.width !== this.scale.width ||
+          this.cameras.main.height !== this.scale.height
+        ) {
+          this.cameras.main.setSize(this.scale.width, this.scale.height);
+        }
 
         this.boardManager.updateLayout(
           this.TILE_SIZE,
@@ -150,6 +160,8 @@ export class MatchThree extends Scene {
         );
 
         this.repositionUI();
+
+        this.isResizing = false;
       });
     });
   }
