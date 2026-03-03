@@ -46,22 +46,17 @@ export class InputManager {
         this.gridConfig.offsetY,
       );
 
-      // Check bounds
-      if (
-        row >= 0 &&
-        row < this.gridConfig.gridSize &&
-        col >= 0 &&
-        col < this.gridConfig.gridSize
-      ) {
-        // We need a way to get the tile from the scene.
-        // For now, we'll let the scene handle the "finding" part or pass the board.
-        // Optimization: Let's emit a request or use a getter.
-        this.selectedTile = this.scene.getTileAt(row, col);
+      const tile = this.scene.getTileAt(row, col);
+      if (tile) {
+        this.selectedTile = tile;
+        this.selectedTile.setSelected(true);
       }
     });
 
     this.scene.input.on("pointerup", (pointer: Phaser.Input.Pointer) => {
       if (!this.selectedTile || !this.isEnabled) return;
+
+      this.selectedTile.setSelected(false);
 
       const diffX = pointer.x - this.selectedTile.x;
       const diffY = pointer.y - this.selectedTile.y;
