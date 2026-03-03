@@ -1,36 +1,65 @@
-const CACHE_NAME = "match-three-cache";
+const CACHE_NAME = "match-three-v1";
 
-const PRECACHE_ASSETS = [
+const PRE_CACHE = [
   "./",
   "./index.html",
-  "./main.js",
-  "./assets/spritesheet.png",
-  "./assets/spark.png",
+  "./style.css",
+  "./manifest.json",
+  "./favicon.png",
 ];
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_ASSETS)),
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRE_CACHE)),
   );
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys.map((key) => {
+            if (key !== CACHE_NAME) return caches.delete(key);
+          }),
+        ),
+      )
+      .then(() => self.clients.claim()),
+  );
 });
 
 self.addEventListener("fetch", (event) => {
-  event.respondWith(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.match(event.request).then((cachedResponse) => {
-        const fetchPromise = fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            cache.put(event.request, networkResponse.clone());
-          }
-          return networkResponse;
-        });
+  const url = new URL(event.request.url);
 
-        return cachedResponse || fetchPromise;
+  if (PRE_CACHE.some((path) => url.pathname.endsWith(path.replace("./", "")))) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const resClone = response.clone();
+          caches
+            .open(CACHE_NAME)
+            .then((cache) => cache.put(event.request, resClone));
+          return response;
+        })
+        .catch(() => caches.match(event.request)),
+    );
+    return;
+  }
+
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) return cachedResponse;
+
+      return fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const resClone = networkResponse.clone();
+          caches
+            .open(CACHE_NAME)
+            .then((cache) => cache.put(event.request, resClone));
+        }
+        return networkResponse;
       });
     }),
   );
