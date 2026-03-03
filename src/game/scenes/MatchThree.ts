@@ -131,22 +131,26 @@ export class MatchThree extends Scene {
     this.createSettingsButton();
 
     this.scale.on("resize", () => {
-      this.calculateLayout();
-      this.cameras.main.setSize(this.scale.width, this.scale.height);
+      // Add a tiny delay to let the browser finish the rotation animation
+      // and report the correct final dimensions
+      this.time.delayedCall(100, () => {
+        this.calculateLayout();
+        this.cameras.main.setSize(this.scale.width, this.scale.height);
 
-      // Managers update existing objects
-      this.boardManager.updateLayout(
-        this.TILE_SIZE,
-        this.offsetX,
-        this.offsetY,
-      );
-      this.inputManager.updateLayout(
-        this.TILE_SIZE,
-        this.offsetX,
-        this.offsetY,
-      );
+        // Managers update existing objects
+        this.boardManager.updateLayout(
+          this.TILE_SIZE,
+          this.offsetX,
+          this.offsetY,
+        );
+        this.inputManager.updateLayout(
+          this.TILE_SIZE,
+          this.offsetX,
+          this.offsetY,
+        );
 
-      this.repositionUI();
+        this.repositionUI();
+      });
     });
   }
 
