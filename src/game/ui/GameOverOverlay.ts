@@ -93,6 +93,25 @@ export class GameOverOverlay {
 
     // Re-center the content group
     this.contentContainer.setPosition(width / 2, height / 2);
+
+    // Adjust to screen size
+    const title = this.contentContainer.list[0] as GameObjects.Text;
+    const scoreText = this.contentContainer.list[1] as GameObjects.Text;
+
+    const maxWidth = width * 0.9;
+
+    if (title.width > maxWidth) {
+      const newScale = maxWidth / title.width;
+      title.setScale(newScale);
+    } else {
+      title.setScale(1);
+    }
+
+    if (scoreText.width > maxWidth) {
+      scoreText.setScale(maxWidth / scoreText.width);
+    } else {
+      scoreText.setScale(1);
+    }
   }
 
   private show(): void {
