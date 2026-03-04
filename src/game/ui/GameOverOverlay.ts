@@ -1,4 +1,5 @@
 import { Scene, GameObjects } from "phaser";
+import Constants from "../config/Constants";
 
 /**
  * A responsive full-screen UI overlay displayed when no moves are left.
@@ -74,7 +75,7 @@ export class GameOverOverlay {
       this.bg,
       this.contentContainer,
     ]);
-    this.container.setAlpha(0).setDepth(2000);
+    this.container.setAlpha(0).setDepth(Constants.DEPTH_LAYERS.OVERLAY);
 
     // 5. Listen for Resize
     this.scene.scale.on("resize", this.reposition, this);

@@ -1,6 +1,11 @@
 import { Scene } from "phaser";
 import { GameConfig } from "../config/GameConfig";
+import Constants from "../config/Constants";
 
+/**
+ * An Overlay where the User can define
+ * Grid Size and Tile Variety
+ */
 export class SettingsOverlay {
   private container: Phaser.GameObjects.Container;
   private varietyText!: Phaser.GameObjects.Text;
@@ -9,16 +14,15 @@ export class SettingsOverlay {
   constructor(private scene: Scene) {
     const { width, height } = scene.cameras.main;
 
-    // 1. Zuerst den Container erstellen
-    this.container = scene.add.container(0, 0).setDepth(5000);
+    this.container = scene.add
+      .container(0, 0)
+      .setDepth(Constants.DEPTH_LAYERS.OVERLAY);
 
-    // 2. Hintergrund (blockiert Input für das Spiel)
     const bg = scene.add
       .rectangle(0, 0, width, height, 0x000000, 0.8)
       .setOrigin(0)
       .setInteractive();
 
-    // 3. Panel
     const panel = scene.add
       .rectangle(width / 2, height / 2, 450, 500, 0x222222)
       .setStrokeStyle(4, 0xffcc00);
@@ -31,10 +35,8 @@ export class SettingsOverlay {
       })
       .setOrigin(0.5);
 
-    // Jetzt dem Container hinzufügen
     this.container.add([bg, panel, title]);
 
-    // 4. Value Selectors aufrufen (this.container existiert jetzt!)
     this.createValueSelector(
       "Grid Size",
       height / 2 - 60,
@@ -65,7 +67,6 @@ export class SettingsOverlay {
       (textObj) => (this.varietyText = textObj),
     );
 
-    // 5. Save Button
     const saveBtnBg = scene.add
       .rectangle(width / 2, height / 2 + 160, 300, 60, 0xffcc00)
       .setInteractive({ useHandCursor: true });
@@ -84,6 +85,15 @@ export class SettingsOverlay {
     this.container.add([saveBtnBg, saveBtnText]);
   }
 
+  /**
+   * Create a Control Group for
+   * Adjusting Numeric Values
+   * @param label Text to display
+   * @param y Y position
+   * @param getVal Initial Value
+   * @param updateFn Callback function
+   * @param ref Parent element
+   */
   private createValueSelector(
     label: string,
     y: number,

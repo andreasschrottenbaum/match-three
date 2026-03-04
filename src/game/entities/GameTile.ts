@@ -1,5 +1,6 @@
 import { Scene, GameObjects } from "phaser";
 import type { TileID, GridPosition } from "../types";
+import Constants from "../config/Constants";
 
 /**
  * Visual representation of a single tile.
@@ -40,7 +41,7 @@ export class GameTile extends GameObjects.Container {
     this.sprite.setOrigin(0.5);
     this.add(this.sprite);
 
-    this.baseScale = size / 185;
+    this.baseScale = size / Constants.SPRITE_SIZE;
     this.setScale(this.baseScale);
 
     scene.add.existing(this);

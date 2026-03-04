@@ -7,6 +7,7 @@ import { GridUtils } from "../logic/GridUtils";
 import { GameOverOverlay } from "../ui/GameOverOverlay";
 import { GameConfig } from "../config/GameConfig";
 import { SettingsOverlay } from "../ui/SettingsOverlay";
+import Constants from "../config/Constants";
 
 /**
  * Main game scene that orchestrates managers and game flow.
@@ -39,27 +40,8 @@ export class MatchThree extends Scene {
    * Initializes layout constants based on current screen dimensions.
    */
   init(): void {
-    this.GRID_SIZE = GameConfig.grid.size;
-    this.TYPE_COUNT = GameConfig.grid.variety;
     this.shuffleCharges = GameConfig.grid.shuffleCharges;
-
-    const padding = 40;
-    const uiHeight = 200;
-
-    const maxTileW = (this.cameras.main.width - padding * 2) / this.GRID_SIZE;
-    const maxTileH =
-      (this.cameras.main.height - uiHeight - padding * 2) / this.GRID_SIZE;
-
-    this.TILE_SIZE = Math.min(maxTileW, maxTileH);
-
-    const offsets = GridUtils.getGridOffsets(
-      this.cameras.main.width,
-      this.cameras.main.height,
-      this.GRID_SIZE,
-      this.TILE_SIZE,
-    );
-    this.offsetX = offsets.x;
-    this.offsetY = offsets.y;
+    this.calculateLayout();
   }
 
   /**
@@ -67,8 +49,8 @@ export class MatchThree extends Scene {
    */
   preload(): void {
     this.load.spritesheet("tiles", "assets/spritesheet.png", {
-      frameWidth: 185,
-      frameHeight: 185,
+      frameWidth: Constants.SPRITE_SIZE,
+      frameHeight: Constants.SPRITE_SIZE,
     });
     this.load.image("spark", "assets/spark.png");
   }
@@ -168,23 +150,26 @@ export class MatchThree extends Scene {
     });
   }
 
+  /**
+   * Calculates the positioning of the
+   * Game Grid
+   */
   private calculateLayout(): void {
     const { width, height } = this.cameras.main;
 
-    // Wir lassen Platz für UI (Score oben, Buttons unten)
     const verticalPadding = 200;
     const horizontalPadding = 40;
 
     const availableWidth = width - horizontalPadding;
     const availableHeight = height - verticalPadding;
 
-    // TILE_SIZE so wählen, dass das Grid in BEIDE Richtungen passt
     const maxTileW = availableWidth / this.GRID_SIZE;
     const maxTileH = availableHeight / this.GRID_SIZE;
 
     this.TILE_SIZE = Math.min(maxTileW, maxTileH);
+    this.GRID_SIZE = GameConfig.grid.size;
+    this.TYPE_COUNT = GameConfig.grid.variety;
 
-    // Zentrieren
     const offsets = GridUtils.getGridOffsets(
       width,
       height,
@@ -215,7 +200,7 @@ export class MatchThree extends Scene {
         strokeThickness: 6,
       })
       .setOrigin(0.5)
-      .setDepth(2000);
+      .setDepth(Constants.DEPTH_LAYERS.OVERLAY);
 
     this.tweens.add({
       targets: text,
@@ -291,6 +276,7 @@ export class MatchThree extends Scene {
       lifespan: 600,
       emitting: false,
     });
+    this.emitter.setDepth(Constants.DEPTH_LAYERS.PARTICLES);
   }
 
   /**
@@ -328,16 +314,13 @@ export class MatchThree extends Scene {
 
     this.inputManager.setEnabled(false);
 
-    // 1. Logisches Grid holen und mischen
     const currentGrid = this.boardManager.getNumericGrid();
     const shuffledGrid = BoardLogic.shuffleGrid(currentGrid, () =>
       PMath.RND.frac(),
     );
 
-    // 2. Visuell aktualisieren
     this.boardManager.shuffleVisuals(shuffledGrid);
 
-    // 3. Kurz warten und Input wieder freigeben
     this.time.delayedCall(500, () => {
       this.inputManager.setEnabled(true);
     });
@@ -365,6 +348,10 @@ export class MatchThree extends Scene {
     });
   }
 
+  /**
+   * Re-Calculates the positioning
+   * after Resizing
+   */
   private repositionUI(): void {
     const { width, height } = this.scale;
     const margin = 20;

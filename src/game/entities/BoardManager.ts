@@ -3,6 +3,7 @@ import { GameTile } from "./GameTile";
 import { BoardLogic } from "../logic/BoardLogic";
 import { GridUtils } from "../logic/GridUtils";
 import { TileID } from "../types";
+import Constants from "../config/Constants";
 
 /**
  * Configuration for the BoardManager layout and game rules.
@@ -311,7 +312,7 @@ export class BoardManager {
     this.config.offsetX = newX;
     this.config.offsetY = newY;
 
-    const targetScale = newSize / 185;
+    const targetScale = newSize / Constants.SPRITE_SIZE;
 
     for (let row = 0; row < this.config.gridSize; row++) {
       for (let col = 0; col < this.config.gridSize; col++) {
@@ -324,7 +325,7 @@ export class BoardManager {
         tile.setBaseScale(targetScale);
 
         const pos = this.getWorldPos(row, col);
-        tile.setDepth(10);
+        tile.setDepth(Constants.DEPTH_LAYERS.TILES);
 
         this.scene.tweens.add({
           targets: tile,

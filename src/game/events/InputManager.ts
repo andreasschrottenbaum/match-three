@@ -128,6 +128,9 @@ export class InputManager {
 
   /**
    * Updates internal coordinate mapping for input detection.
+   * @param newSize - New Size inPixels
+   * @param newX - New X Position
+   * @param newY - New Y Position
    */
   public updateLayout(newSize: number, newX: number, newY: number): void {
     // Updating the reference passed in the constructor
