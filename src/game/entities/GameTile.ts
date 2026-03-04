@@ -41,6 +41,11 @@ export class GameTile extends GameObjects.Container {
     this.sprite.setOrigin(0.5);
     this.add(this.sprite);
 
+    const shadow = scene.add.sprite(4, 4, "tiles", id); // 4px Versatz
+    shadow.setTint(0xffffff);
+    shadow.setAlpha(0.3);
+    this.addAt(shadow, 0);
+
     this.baseScale = size / Constants.SPRITE_SIZE;
     this.setScale(this.baseScale);
 

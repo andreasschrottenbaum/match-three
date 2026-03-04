@@ -319,39 +319,36 @@ export class BoardManager implements Manager {
     const padding = 20;
     const boardWidth = gridSize * tileSize;
     const boardHeight = gridSize * tileSize;
+    const fullWidth = boardWidth + padding * 2;
+    const fullHeight = boardHeight + padding * 2;
+    const x = offsetX - padding;
+    const y = offsetY - padding;
 
     this.boardBackground = this.scene.add.graphics();
     this.boardBackground.setDepth(Constants.DEPTH_LAYERS.TILES - 2);
 
-    this.boardBackground.fillStyle(0x111111, 0.7); // Dunkler, weniger transparent gegen Grau-Effekt
-    this.boardBackground.fillRoundedRect(
-      offsetX - padding,
-      offsetY - padding,
-      boardWidth + padding * 2,
-      boardHeight + padding * 2,
-      16,
-    );
+    this.boardBackground.fillStyle(0x0a0a0a, 0.8);
+    this.boardBackground.fillRoundedRect(x, y, fullWidth, fullHeight, 16);
 
-    this.boardBackground.lineStyle(1, 0xffffff, 0.05); // Sehr dezente weiße Linien
-
-    for (let i = 0; i <= gridSize; i++) {
-      const x = offsetX + i * tileSize;
-      this.boardBackground.lineBetween(x, offsetY, x, offsetY + boardHeight);
-    }
-
-    for (let i = 0; i <= gridSize; i++) {
-      const y = offsetY + i * tileSize;
-      this.boardBackground.lineBetween(offsetX, y, offsetX + boardWidth, y);
-    }
-
-    this.boardBackground.lineStyle(3, 0xffcc00, 0.3); // Passend zum Goldton deiner Buttons
+    this.boardBackground.lineStyle(4, 0x000000, 0.5);
     this.boardBackground.strokeRoundedRect(
-      offsetX - padding,
-      offsetY - padding,
-      boardWidth + padding * 2,
-      boardHeight + padding * 2,
+      x + 2,
+      y + 2,
+      fullWidth - 4,
+      fullHeight - 4,
       16,
     );
+
+    this.boardBackground.lineStyle(1, 0xffffff, 0.3);
+    for (let i = 1; i < gridSize; i++) {
+      const lx = offsetX + i * tileSize;
+      const ly = offsetY + i * tileSize;
+      this.boardBackground.lineBetween(lx, offsetY, lx, offsetY + boardHeight);
+      this.boardBackground.lineBetween(offsetX, ly, offsetX + boardWidth, ly);
+    }
+
+    this.boardBackground.lineStyle(3, 0xffcc00, 0.4);
+    this.boardBackground.strokeRoundedRect(x, y, fullWidth, fullHeight, 16);
   }
 
   /**
