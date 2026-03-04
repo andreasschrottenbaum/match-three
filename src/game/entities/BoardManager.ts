@@ -23,6 +23,7 @@ export interface BoardConfig {
 export class BoardManager implements Manager {
   /** 2D Array holding the visual GameTile instances */
   private board: (GameTile | null)[][] = [];
+  private boardBackground: Phaser.GameObjects.Graphics | null = null;
 
   /**
    * @param scene - The parent Phaser Scene.
@@ -59,6 +60,8 @@ export class BoardManager implements Manager {
    * @param numericGrid - The pre-calculated stable grid IDs.
    */
   public createVisualBoard(numericGrid: number[][]): void {
+    this.drawBoardBackground();
+
     // Cleanup existing tiles if any
     this.board.forEach((row) => row.forEach((tile) => tile?.destroy()));
     this.board = [];
@@ -79,6 +82,7 @@ export class BoardManager implements Manager {
           this.config.tileSize,
         );
 
+        tile.setDepth(Constants.DEPTH_LAYERS.TILES);
         tile.setAlpha(0);
         this.board[row][col] = tile;
 
@@ -229,6 +233,7 @@ export class BoardManager implements Manager {
         slot.col,
         this.config.tileSize,
       );
+
       this.board[slot.row][slot.col] = newTile;
       const duration = 400 + slot.row * 50;
       maxDelay = Math.max(maxDelay, duration);
@@ -305,12 +310,59 @@ export class BoardManager implements Manager {
   }
 
   /**
-   * BoardManager.ts -> updateLayout
+   * Create a visual background for the grid
+   */
+  public drawBoardBackground(): void {
+    if (this.boardBackground) this.boardBackground.destroy();
+
+    const { gridSize, tileSize, offsetX, offsetY } = this.config;
+    const padding = 20;
+    const boardWidth = gridSize * tileSize;
+    const boardHeight = gridSize * tileSize;
+
+    this.boardBackground = this.scene.add.graphics();
+    this.boardBackground.setDepth(Constants.DEPTH_LAYERS.TILES - 2);
+
+    this.boardBackground.fillStyle(0x111111, 0.7); // Dunkler, weniger transparent gegen Grau-Effekt
+    this.boardBackground.fillRoundedRect(
+      offsetX - padding,
+      offsetY - padding,
+      boardWidth + padding * 2,
+      boardHeight + padding * 2,
+      16,
+    );
+
+    this.boardBackground.lineStyle(1, 0xffffff, 0.05); // Sehr dezente weiße Linien
+
+    for (let i = 0; i <= gridSize; i++) {
+      const x = offsetX + i * tileSize;
+      this.boardBackground.lineBetween(x, offsetY, x, offsetY + boardHeight);
+    }
+
+    for (let i = 0; i <= gridSize; i++) {
+      const y = offsetY + i * tileSize;
+      this.boardBackground.lineBetween(offsetX, y, offsetX + boardWidth, y);
+    }
+
+    this.boardBackground.lineStyle(3, 0xffcc00, 0.3); // Passend zum Goldton deiner Buttons
+    this.boardBackground.strokeRoundedRect(
+      offsetX - padding,
+      offsetY - padding,
+      boardWidth + padding * 2,
+      boardHeight + padding * 2,
+      16,
+    );
+  }
+
+  /**
+   * Updatae Layout after resize
    */
   public updateLayout(newSize: number, newX: number, newY: number): void {
     this.config.tileSize = newSize;
     this.config.offsetX = newX;
     this.config.offsetY = newY;
+
+    this.drawBoardBackground();
 
     const targetScale = newSize / Constants.SPRITE_SIZE;
 
@@ -321,12 +373,10 @@ export class BoardManager implements Manager {
 
         // Stop current animations to prevent scale/position conflicts
         this.scene.tweens.killTweensOf(tile);
-
         tile.setBaseScale(targetScale);
-
-        const pos = this.getWorldPos(row, col);
         tile.setDepth(Constants.DEPTH_LAYERS.TILES);
 
+        const pos = this.getWorldPos(row, col);
         this.scene.tweens.add({
           targets: tile,
           x: pos.x,
