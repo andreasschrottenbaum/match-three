@@ -49,6 +49,17 @@ interface GravityResult {
   newTiles: EmptySlot[];
 }
 
+/**
+ * Interface for manager classes that require manual cleanup
+ * when a scene is destroyed or restarted to prevent memory leaks.
+ */
+interface Manager {
+  /**
+   * Cleans up event listeners, timers, and references.
+   */
+  destroy(): void;
+}
+
 export type {
   TileID,
   GridPosition,
@@ -56,4 +67,5 @@ export type {
   GravityMove,
   EmptySlot,
   GravityResult,
+  Manager,
 };

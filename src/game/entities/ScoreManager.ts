@@ -1,11 +1,12 @@
 import { Scene, GameObjects } from "phaser";
 import Constants from "../config/Constants";
+import { Manager } from "../types";
 
 /**
  * Handles scoring logic and visual UI feedback.
  * Keeps the main Scene file lean and focused on gameplay.
  */
-export class ScoreManager {
+export class ScoreManager implements Manager {
   private scene: Scene;
   private score: number = 0;
   private scoreText!: GameObjects.Text;
@@ -47,6 +48,9 @@ export class ScoreManager {
     });
   }
 
+  /**
+   * Creates a rising, fading text effect at the given position.
+   */
   private showFloatingText(x: number, y: number, message: string): void {
     const popup = this.scene.add
       .text(x, y, message, {
@@ -68,10 +72,23 @@ export class ScoreManager {
     });
   }
 
+  /**
+   * Cleans up any active references.
+   * Although scoreText is managed by the scene, this provides a hook
+   * for stopping persistent effects if added later.
+   */
+  public destroy(): void {}
+
+  /**
+   * Returns the current total score.
+   */
   public get currentScore(): number {
     return this.score;
   }
 
+  /**
+   * Returns the main text game object for external layout adjustments.
+   */
   public get element(): GameObjects.Text {
     return this.scoreText;
   }

@@ -8,6 +8,7 @@ import { GameOverOverlay } from "../ui/GameOverOverlay";
 import { GameConfig } from "../config/GameConfig";
 import { SettingsOverlay } from "../ui/SettingsOverlay";
 import Constants from "../config/Constants";
+import { Manager } from "../types";
 
 /**
  * Main game scene that orchestrates managers and game flow.
@@ -64,7 +65,10 @@ export class MatchThree extends Scene {
 
     this.cameras.main.setSize(this.scale.width, this.scale.height);
 
+    const managers: Manager[] = [];
+
     this.scoreManager = new ScoreManager(this);
+    managers.push(this.scoreManager);
 
     this.boardManager = new BoardManager(
       this,
@@ -85,6 +89,7 @@ export class MatchThree extends Scene {
         },
       },
     );
+    managers.push(this.boardManager);
 
     this.boardManager.updateLayout(this.TILE_SIZE, this.offsetX, this.offsetY);
 
@@ -107,12 +112,20 @@ export class MatchThree extends Scene {
         );
       },
     );
+    managers.push(this.inputManager);
+
     this.inputManager.updateLayout(this.TILE_SIZE, this.offsetX, this.offsetY);
 
     this.setupParticles();
     this.setupBoard();
     this.createShuffleButton();
     this.createSettingsButton();
+
+    this.events.once("shutdown", () => {
+      managers.forEach((manager) => manager.destroy());
+
+      this.scale.off("resize");
+    });
 
     this.scale.on("resize", () => {
       if (this.isResizing) return;

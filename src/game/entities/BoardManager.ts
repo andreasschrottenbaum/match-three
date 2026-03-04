@@ -2,7 +2,7 @@ import { Scene } from "phaser";
 import { GameTile } from "./GameTile";
 import { BoardLogic } from "../logic/BoardLogic";
 import { GridUtils } from "../logic/GridUtils";
-import { TileID } from "../types";
+import { Manager, TileID } from "../types";
 import Constants from "../config/Constants";
 
 /**
@@ -20,7 +20,7 @@ export interface BoardConfig {
  * Handles the visual grid, tile animations, and orchestrates match logic.
  * Acts as the bridge between the Scene and the logical board state.
  */
-export class BoardManager {
+export class BoardManager implements Manager {
   /** 2D Array holding the visual GameTile instances */
   private board: (GameTile | null)[][] = [];
 
@@ -337,4 +337,9 @@ export class BoardManager {
       }
     }
   }
+
+  /**
+   * Cleans up any active references.
+   */
+  public destroy(): void {}
 }

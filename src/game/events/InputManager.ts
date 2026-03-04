@@ -1,6 +1,7 @@
 import { GameTile } from "../entities/GameTile";
 import { GridUtils } from "../logic/GridUtils";
 import type { MatchThree } from "../scenes/MatchThree";
+import { Manager } from "../types";
 
 /**
  * Data structure emitted when a valid swipe gesture is detected.
@@ -15,7 +16,7 @@ export type SwipeData = {
 /**
  * Manages user input (Pointer/Touch) and translates them into game actions like selection and swiping.
  */
-export class InputManager {
+export class InputManager implements Manager {
   /** The tile currently held by the user */
   private selectedTile: GameTile | null = null;
   /** Internal lock to prevent input during animations or UI overlays */
@@ -137,5 +138,14 @@ export class InputManager {
     this.gridConfig.tileSize = newSize;
     this.gridConfig.offsetX = newX;
     this.gridConfig.offsetY = newY;
+  }
+
+  /**
+   * Class destructor
+   */
+  public destroy(): void {
+    this.scene.input.off("pointerdown");
+    this.scene.input.off("pointerup");
+    this.scene.input.off("pointermove");
   }
 }
