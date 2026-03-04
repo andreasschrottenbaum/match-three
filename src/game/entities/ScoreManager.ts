@@ -1,4 +1,5 @@
 import { Scene, GameObjects } from "phaser";
+import Constants from "../config/Constants";
 
 /**
  * Handles scoring logic and visual UI feedback.
@@ -19,10 +20,9 @@ export class ScoreManager {
    */
   private setupUI(): void {
     this.scoreText = this.scene.add.text(20, 20, "Score: 0", {
+      ...Constants.DEFAULT_FONT,
       fontSize: "32px",
-      color: "#ffffff",
       fontStyle: "bold",
-      fontFamily: "Arial",
     });
   }
 
@@ -50,10 +50,10 @@ export class ScoreManager {
   private showFloatingText(x: number, y: number, message: string): void {
     const popup = this.scene.add
       .text(x, y, message, {
+        ...Constants.DEFAULT_FONT,
         fontSize: "40px",
         color: "#ffcc00",
         fontStyle: "bold",
-        stroke: "#000000",
         strokeThickness: 6,
       })
       .setOrigin(0.5);

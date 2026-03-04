@@ -53,6 +53,7 @@ export class MatchThree extends Scene {
       frameHeight: Constants.SPRITE_SIZE,
     });
     this.load.image("spark", "assets/spark.png");
+    this.load.font("FreckleFace", "./assets/fonts/FreckleFace-Regular.ttf");
   }
 
   /**
@@ -193,11 +194,10 @@ export class MatchThree extends Scene {
 
     const text = this.add
       .text(x, y, `${msg}\nx${combo}`, {
+        ...Constants.DEFAULT_FONT,
         fontSize: "48px",
         fontStyle: "bold",
         color: "#ffcc00",
-        stroke: "#000",
-        strokeThickness: 6,
       })
       .setOrigin(0.5)
       .setDepth(Constants.DEPTH_LAYERS.OVERLAY);
@@ -291,8 +291,7 @@ export class MatchThree extends Scene {
       .setInteractive({ useHandCursor: true });
     this.shuffleButtonText = this.add
       .text(0, 0, `SHUFFLE (${this.shuffleCharges})`, {
-        fontSize: "24px",
-        color: "#ffffff",
+        ...Constants.DEFAULT_FONT,
       })
       .setOrigin(0.5);
 
@@ -336,8 +335,8 @@ export class MatchThree extends Scene {
   private createSettingsButton(): void {
     this.settingsButton = this.add
       .text(50, this.cameras.main.height - 50, "⚙", {
+        ...Constants.DEFAULT_FONT,
         fontSize: "32px",
-        color: "#ffffff",
       })
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });

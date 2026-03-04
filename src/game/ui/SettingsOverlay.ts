@@ -29,8 +29,8 @@ export class SettingsOverlay {
 
     const title = scene.add
       .text(width / 2, height / 2 - 180, "SETTINGS", {
+        ...Constants.DEFAULT_FONT,
         fontSize: "42px",
-        fontStyle: "bold",
         color: "#ffcc00",
       })
       .setOrigin(0.5);
@@ -72,9 +72,7 @@ export class SettingsOverlay {
       .setInteractive({ useHandCursor: true });
     const saveBtnText = scene.add
       .text(width / 2, height / 2 + 160, "SAVE & RESTART", {
-        fontSize: "24px",
-        color: "#000000",
-        fontStyle: "bold",
+        ...Constants.DEFAULT_FONT,
       })
       .setOrigin(0.5);
 
@@ -105,13 +103,13 @@ export class SettingsOverlay {
 
     const labelText = this.scene.add
       .text(width / 2, y - 45, label, {
-        fontSize: "20px",
+        ...Constants.DEFAULT_FONT,
         color: "#aaaaaa",
-        fontStyle: "bold",
       })
       .setOrigin(0.5);
 
     const btnStyle = {
+      ...Constants.DEFAULT_FONT,
       fontSize: "32px",
       color: "#ffcc00",
       backgroundColor: "#333333",
@@ -126,9 +124,9 @@ export class SettingsOverlay {
 
     const valText = this.scene.add
       .text(width / 2, y, getVal().toString(), {
+        ...Constants.DEFAULT_FONT,
         fontSize: "36px",
         fontStyle: "bold",
-        color: "#ffffff",
       })
       .setOrigin(0.5);
 

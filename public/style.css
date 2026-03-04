@@ -13,3 +13,14 @@ body {
   justify-content: center;
   align-items: center;
 }
+
+@font-face {
+  font-family: "FreckleFace";
+  src: url("./assets/fonts/FreckleFace-Regular.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+canvas {
+  font-family: "FreckleFace";
+}

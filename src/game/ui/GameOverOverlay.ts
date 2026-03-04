@@ -25,18 +25,17 @@ export class GameOverOverlay {
     // 2. Content Container (Centered elements)
     const title = scene.add
       .text(0, -100, "NO MORE MOVES", {
+        ...Constants.DEFAULT_FONT,
         fontSize: "64px",
         fontStyle: "bold",
-        color: "#ffffff",
-        fontFamily: "Arial",
       })
       .setOrigin(0.5);
 
     const scoreText = scene.add
       .text(0, 0, `Score: ${finalScore}`, {
+        ...Constants.DEFAULT_FONT,
         fontSize: "42px",
         color: "#00ff00",
-        fontFamily: "Arial",
       })
       .setOrigin(0.5);
 
@@ -47,10 +46,9 @@ export class GameOverOverlay {
 
     const btnText = scene.add
       .text(0, 100, "RESTART", {
+        ...Constants.DEFAULT_FONT,
         fontSize: "32px",
-        color: "#000000",
         fontStyle: "bold",
-        fontFamily: "Arial",
       })
       .setOrigin(0.5);
 
