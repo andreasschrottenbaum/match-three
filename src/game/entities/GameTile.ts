@@ -14,6 +14,8 @@ export class GameTile extends GameObjects.Container {
   private baseScale: number = 1;
   /** Current logical position on the board */
   public gridPosition: GridPosition;
+  /** Tile Shadow */
+  private shadow: GameObjects.Sprite;
 
   /**
    * @param scene - The Phaser Scene
@@ -41,10 +43,10 @@ export class GameTile extends GameObjects.Container {
     this.sprite.setOrigin(0.5);
     this.add(this.sprite);
 
-    const shadow = scene.add.sprite(4, 4, "tiles", id); // 4px Versatz
-    shadow.setTint(0xffffff);
-    shadow.setAlpha(0.3);
-    this.addAt(shadow, 0);
+    this.shadow = scene.add.sprite(4, 4, "tiles", id);
+    this.shadow.setTint(0xffffff);
+    this.shadow.setAlpha(0.3);
+    this.addAt(this.shadow, 0);
 
     this.baseScale = size / Constants.SPRITE_SIZE;
     this.setScale(this.baseScale);
@@ -82,6 +84,16 @@ export class GameTile extends GameObjects.Container {
         duration: 100,
         ease: "Back.easeOut",
       });
+
+      // Shadow
+      this.scene.tweens.add({
+        targets: this.shadow,
+        x: 8,
+        y: 8,
+        alpha: 0.2,
+        duration: 100,
+      });
+
       this.sprite.setTint(0xdddddd);
     } else {
       this.scene.tweens.add({
@@ -90,6 +102,15 @@ export class GameTile extends GameObjects.Container {
         duration: 100,
         ease: "Power2",
       });
+
+      this.scene.tweens.add({
+        targets: this.shadow,
+        x: 4,
+        y: 4,
+        alpha: 0.3,
+        duration: 100,
+      });
+
       this.sprite.clearTint();
     }
   }
@@ -111,6 +132,25 @@ export class GameTile extends GameObjects.Container {
       y,
       duration,
       ease: "Back.easeOut",
+      onComplete: () => {
+        this.scene.tweens.add({
+          targets: this.sprite,
+          scaleX: 1.2,
+          scaleY: 0.8,
+          duration: 100,
+          yoyo: true,
+          ease: "Cubic.easeOut",
+        });
+
+        this.scene.tweens.add({
+          targets: this.shadow,
+          scaleX: 1.2,
+          scaleY: 0.8,
+          duration: 100,
+          yoyo: true,
+          ease: "Cubic.easeOut",
+        });
+      },
     });
   }
 

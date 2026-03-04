@@ -233,6 +233,7 @@ export class BoardManager implements Manager {
         slot.col,
         this.config.tileSize,
       );
+      newTile.setDepth(Constants.DEPTH_LAYERS.TILES);
 
       this.board[slot.row][slot.col] = newTile;
       const duration = 400 + slot.row * 50;
