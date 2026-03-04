@@ -1,8 +1,10 @@
 import { Scene, GameObjects } from "phaser";
 import Constants from "../config/Constants";
+import { UIUtils } from "./UIUtils";
 
 /**
  * A responsive full-screen UI overlay displayed when no moves are left.
+ * Refactored to use UIUtils for consistent styling and interactions.
  */
 export class GameOverOverlay {
   private container: GameObjects.Container;
@@ -16,101 +18,80 @@ export class GameOverOverlay {
   ) {
     const { width, height } = scene.cameras.main;
 
-    // 1. Background Dimmer (Full screen)
+    // 1. Background Dimmer
     this.bg = scene.add
-      .rectangle(0, 0, width, height, 0x000000, 0.7)
+      .rectangle(0, 0, width, height, 0x000000, 0.75)
       .setOrigin(0)
-      .setInteractive(); // Block input
+      .setInteractive();
 
-    // 2. Content Container (Centered elements)
-    const title = scene.add
-      .text(0, -100, "NO MORE MOVES", {
-        ...Constants.DEFAULT_FONT,
-        fontSize: "64px",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5);
+    // 2. Center Content Setup
+    const title = UIUtils.addText(this.scene, 0, -120, "NO MORE MOVES", "64px")
+      .setFontStyle("bold")
+      .setColor("#ffffff");
 
-    const scoreText = scene.add
-      .text(0, 0, `Score: ${finalScore}`, {
-        ...Constants.DEFAULT_FONT,
-        fontSize: "42px",
-        color: "#00ff00",
-      })
-      .setOrigin(0.5);
+    const scoreText = UIUtils.addText(
+      this.scene,
+      0,
+      -20,
+      `Score: ${finalScore}`,
+      "48px",
+    ).setColor("#00ff00");
 
-    // 3. Restart Button
-    const btnBg = scene.add
-      .rectangle(0, 100, 250, 80, 0xffffff, 1)
-      .setInteractive({ useHandCursor: true });
+    // 3. Restart Button via UIUtils
+    const restartBtn = UIUtils.createButton(
+      this.scene,
+      0,
+      110,
+      "RESTART",
+      () => {
+        this.scene.scale.off("resize", this.reposition, this);
+        this.hide(onRestart);
+      },
+    );
 
-    const btnText = scene.add
-      .text(0, 100, "RESTART", {
-        ...Constants.DEFAULT_FONT,
-        fontSize: "32px",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5);
-
-    // Grouping central UI elements
+    // Grouping
     this.contentContainer = scene.add.container(width / 2, height / 2, [
       title,
       scoreText,
-      btnBg,
-      btnText,
+      restartBtn,
     ]);
 
-    // 4. Interactions
-    btnBg.on("pointerover", () => btnBg.setFillStyle(0xdddddd));
-    btnBg.on("pointerout", () => btnBg.setFillStyle(0xffffff));
-    btnBg.on("pointerdown", () => {
-      this.scene.scale.off("resize", this.reposition, this); // Clean up listener
-      this.hide(onRestart);
-    });
-
-    // Main Container
     this.container = scene.add.container(0, 0, [
       this.bg,
       this.contentContainer,
     ]);
+
     this.container.setAlpha(0).setDepth(Constants.DEPTH_LAYERS.OVERLAY);
 
-    // 5. Listen for Resize
+    // Listen for Resize to keep it centered
     this.scene.scale.on("resize", this.reposition, this);
 
+    // Initial check for scaling
+    this.reposition();
     this.show();
   }
 
   /**
-   * Adjusts UI positions when the screen size changes.
+   * Adjusts UI positions and scales text if the screen is too narrow.
    */
   private reposition(): void {
     const { width, height } = this.scene.cameras.main;
 
-    // Resize background to cover new screen dimensions
     this.bg.setSize(width, height);
-
-    // Re-center the content group
     this.contentContainer.setPosition(width / 2, height / 2);
 
-    // Adjust to screen size
     const title = this.contentContainer.list[0] as GameObjects.Text;
     const scoreText = this.contentContainer.list[1] as GameObjects.Text;
+    const maxWidth = width * 0.85;
 
-    const maxWidth = width * 0.9;
-
-    if (title.width > maxWidth) {
-      const newScale = maxWidth / title.width;
-      title.setScale(newScale);
-    } else {
-      title.setScale(1);
-    }
-
-    if (scoreText.width > maxWidth) {
-      scoreText.setScale(maxWidth / scoreText.width);
-    } else {
-      scoreText.setScale(1);
-    }
+    // Auto-Scale text for small mobile screens
+    [title, scoreText].forEach((text) => {
+      if (text.width > maxWidth) {
+        text.setScale(maxWidth / text.width);
+      } else {
+        text.setScale(1);
+      }
+    });
   }
 
   private show(): void {
@@ -118,7 +99,7 @@ export class GameOverOverlay {
       targets: this.container,
       alpha: 1,
       duration: 500,
-      ease: "Power2",
+      ease: "Back.easeOut",
     });
   }
 
@@ -126,8 +107,7 @@ export class GameOverOverlay {
     this.scene.tweens.add({
       targets: this.container,
       alpha: 0,
-      duration: 300,
-      ease: "Power2",
+      duration: 250,
       onComplete: () => {
         this.container.destroy();
         onComplete();

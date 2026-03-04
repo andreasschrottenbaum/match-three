@@ -1,66 +1,46 @@
 import { Scene, GameObjects } from "phaser";
-import Constants from "../config/Constants";
+import { UIUtils } from "../ui/UIUtils";
 import { Manager } from "../types";
 
 /**
  * Handles scoring logic and visual UI feedback.
- * Keeps the main Scene file lean and focused on gameplay.
+ * Implements the Manager interface for lifecycle safety.
  */
 export class ScoreManager implements Manager {
-  private scene: Scene;
   private score: number = 0;
   private scoreText!: GameObjects.Text;
 
-  constructor(scene: Scene) {
-    this.scene = scene;
+  constructor(private scene: Scene) {
     this.setupUI();
   }
 
   /**
-   * Initializes the static score display.
+   * The Element which displays "Score: <points>"
    */
-  private setupUI(): void {
-    this.scoreText = this.scene.add.text(20, 20, "Score: 0", {
-      ...Constants.DEFAULT_FONT,
-      fontSize: "32px",
-      fontStyle: "bold",
-    });
+  public get element(): GameObjects.Text {
+    return this.scoreText;
   }
 
   /**
-   * Adds points and triggers visual feedback.
-   * @param points - Points to add.
-   * @param x - Horizontal position for floating text.
-   * @param y - Vertical position for floating text.
+   * Initializes the score display using UIUtils.
+   */
+  private setupUI(): void {
+    this.scoreText = UIUtils.addText(this.scene, 20, 20, "Score: 0", "32px")
+      .setOrigin(0) // Align to top-left
+      .setScrollFactor(0);
+  }
+
+  /**
+   * Adds points and triggers a popup effect via UIUtils.
    */
   public addPoints(points: number, x: number, y: number): void {
     this.score += points;
     this.scoreText.setText(`Score: ${this.score}`);
 
-    this.showFloatingText(x, y, `+${points}`);
-
-    // Slight "juice" effect on the main score label
-    this.scene.tweens.add({
-      targets: this.scoreText,
-      scale: 1.1,
-      duration: 100,
-      yoyo: true,
-    });
-  }
-
-  /**
-   * Creates a rising, fading text effect at the given position.
-   */
-  private showFloatingText(x: number, y: number, message: string): void {
-    const popup = this.scene.add
-      .text(x, y, message, {
-        ...Constants.DEFAULT_FONT,
-        fontSize: "40px",
-        color: "#ffcc00",
-        fontStyle: "bold",
-        strokeThickness: 6,
-      })
-      .setOrigin(0.5);
+    // Create a juicy floating text
+    const popup = UIUtils.addText(this.scene, x, y, `+${points}`, "40px")
+      .setColor("#ffcc00")
+      .setStroke("#000000", 6);
 
     this.scene.tweens.add({
       targets: popup,
@@ -70,26 +50,24 @@ export class ScoreManager implements Manager {
       ease: "Cubic.easeOut",
       onComplete: () => popup.destroy(),
     });
+
+    // Main label bounce
+    this.scene.tweens.add({
+      targets: this.scoreText,
+      scale: 1.1,
+      duration: 100,
+      yoyo: true,
+    });
   }
 
   /**
-   * Cleans up any active references.
-   * Although scoreText is managed by the scene, this provides a hook
-   * for stopping persistent effects if added later.
+   * Cleans up references when the scene shuts down.
    */
-  public destroy(): void {}
+  public destroy(): void {
+    this.scoreText?.destroy();
+  }
 
-  /**
-   * Returns the current total score.
-   */
   public get currentScore(): number {
     return this.score;
-  }
-
-  /**
-   * Returns the main text game object for external layout adjustments.
-   */
-  public get element(): GameObjects.Text {
-    return this.scoreText;
   }
 }

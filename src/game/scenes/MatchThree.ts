@@ -7,6 +7,7 @@ import { GridUtils } from "../logic/GridUtils";
 import { GameOverOverlay } from "../ui/GameOverOverlay";
 import { GameConfig } from "../config/GameConfig";
 import { SettingsOverlay } from "../ui/SettingsOverlay";
+import { UIUtils } from "../ui/UIUtils";
 import Constants from "../config/Constants";
 import { Manager } from "../types";
 
@@ -24,9 +25,9 @@ export class MatchThree extends Scene {
   private isResizing = false;
 
   private shuffleCharges!: number;
-  private shuffleButtonText!: Phaser.GameObjects.Text;
-  private shuffleButtonContainer!: Phaser.GameObjects.Container;
-  private settingsButton!: Phaser.GameObjects.Text;
+  private shuffleButton!: Phaser.GameObjects.Container;
+  private shuffleText!: Phaser.GameObjects.Text;
+  private settingsButton!: Phaser.GameObjects.Container;
 
   private scoreManager!: ScoreManager;
   private inputManager!: InputManager;
@@ -67,9 +68,11 @@ export class MatchThree extends Scene {
 
     const managers: Manager[] = [];
 
+    // 1. Score Management
     this.scoreManager = new ScoreManager(this);
     managers.push(this.scoreManager);
 
+    // 2. Board Management
     this.boardManager = new BoardManager(
       this,
       {
@@ -91,8 +94,7 @@ export class MatchThree extends Scene {
     );
     managers.push(this.boardManager);
 
-    this.boardManager.updateLayout(this.TILE_SIZE, this.offsetX, this.offsetY);
-
+    // 3. Input Management
     this.inputManager = new InputManager(
       this,
       {
@@ -114,19 +116,22 @@ export class MatchThree extends Scene {
     );
     managers.push(this.inputManager);
 
+    // Initial Layout Sync
+    this.boardManager.updateLayout(this.TILE_SIZE, this.offsetX, this.offsetY);
     this.inputManager.updateLayout(this.TILE_SIZE, this.offsetX, this.offsetY);
 
+    // Visual Setup
     this.setupParticles();
     this.setupBoard();
-    this.createShuffleButton();
-    this.createSettingsButton();
+    this.createUI();
 
+    // Lifecycle: Cleanup on shutdown
     this.events.once("shutdown", () => {
       managers.forEach((manager) => manager.destroy());
-
       this.scale.off("resize");
     });
 
+    // Handle Window Resizing
     this.scale.on("resize", () => {
       if (this.isResizing) return;
 
@@ -135,7 +140,6 @@ export class MatchThree extends Scene {
 
       this.time.delayedCall(150, () => {
         this.scale.refresh();
-
         this.calculateLayout();
 
         if (
@@ -165,8 +169,7 @@ export class MatchThree extends Scene {
   }
 
   /**
-   * Calculates the positioning of the
-   * Game Grid
+   * Calculates the positioning of the Game Grid.
    */
   private calculateLayout(): void {
     const { width, height } = this.cameras.main;
@@ -196,23 +199,49 @@ export class MatchThree extends Scene {
   }
 
   /**
+   * Initializes UI elements using UIUtils for visual consistency.
+   */
+  private createUI(): void {
+    const { width, height } = this.cameras.main;
+
+    // Shuffle Button
+    this.shuffleButton = UIUtils.createButton(
+      this,
+      width - 150,
+      height - 80,
+      `SHUFFLE (${this.shuffleCharges})`,
+      () => this.handleShuffle(),
+    );
+
+    // Extract text reference from container to update charges later
+    this.shuffleText = this.shuffleButton.list.find(
+      (obj) => obj instanceof Phaser.GameObjects.Text,
+    ) as Phaser.GameObjects.Text;
+
+    // Settings Button
+    this.settingsButton = UIUtils.createButton(
+      this,
+      60,
+      height - 80,
+      "⚙",
+      () => {
+        if (this.inputManager.getEnabled()) {
+          this.inputManager.setEnabled(false);
+          new SettingsOverlay(this);
+        }
+      },
+    );
+  }
+
+  /**
    * Displays a rising text effect when a combo is achieved.
-   * @param combo - The current multiplier.
-   * @param x - World X position.
-   * @param y - World Y position.
    */
   private showComboText(combo: number, x: number, y: number): void {
     const messages = ["GREAT!", "SUPER!", "FANTASTIC!", "UNBELIEVABLE!"];
     const msg = messages[PMath.Clamp(combo - 2, 0, messages.length - 1)];
 
-    const text = this.add
-      .text(x, y, `${msg}\nx${combo}`, {
-        ...Constants.DEFAULT_FONT,
-        fontSize: "48px",
-        fontStyle: "bold",
-        color: "#ffcc00",
-      })
-      .setOrigin(0.5)
+    const text = UIUtils.addText(this, x, y, `${msg}\nx${combo}`, "48px")
+      .setColor("#ffcc00")
       .setDepth(Constants.DEPTH_LAYERS.OVERLAY);
 
     this.tweens.add({
@@ -253,18 +282,15 @@ export class MatchThree extends Scene {
     }
 
     if (!isValidStart) {
-      console.warn(
-        "Could not create a valid board. Checking TYPE_COUNT/GRID_SIZE ratios.",
-      );
+      console.warn("Could not create a valid board.");
     }
 
+    this.inputManager.setEnabled(false);
     this.boardManager.createVisualBoard(numericGrid);
   }
 
   /**
    * Proxy method for the InputManager to access tiles from the board.
-   * @param row - Grid row.
-   * @param col - Grid column.
    */
   public getTileAt(row: number, col: number) {
     return this.boardManager.getTileAt(row, col);
@@ -293,36 +319,13 @@ export class MatchThree extends Scene {
   }
 
   /**
-   * Creates a simple button to trigger the shuffle logic.
-   */
-  private createShuffleButton(): void {
-    const x = this.cameras.main.width - 150;
-    const y = this.cameras.main.height - 80;
-
-    const btnBg = this.add
-      .rectangle(0, 0, 200, 60, GameConfig.ui.baseColor)
-      .setInteractive({ useHandCursor: true });
-    this.shuffleButtonText = this.add
-      .text(0, 0, `SHUFFLE (${this.shuffleCharges})`, {
-        ...Constants.DEFAULT_FONT,
-      })
-      .setOrigin(0.5);
-
-    this.shuffleButtonContainer = this.add.container(x, y, [
-      btnBg,
-      this.shuffleButtonText,
-    ]);
-    btnBg.on("pointerdown", () => this.handleShuffle());
-  }
-
-  /**
    * Orchestrates the shuffle process if charges are available.
    */
   private handleShuffle(): void {
     if (this.shuffleCharges <= 0 || !this.inputManager.getEnabled()) return;
 
     this.shuffleCharges--;
-    this.shuffleButtonText.setText(`SHUFFLE (${this.shuffleCharges})`);
+    this.shuffleText.setText(`SHUFFLE (${this.shuffleCharges})`);
 
     this.inputManager.setEnabled(false);
 
@@ -338,46 +341,29 @@ export class MatchThree extends Scene {
     });
 
     if (this.shuffleCharges === 0) {
-      this.shuffleButtonText.setColor("#666666");
+      this.shuffleText.setColor("#666666");
+      const bg = this.shuffleButton.list[0] as Phaser.GameObjects.Rectangle;
+      bg.setFillStyle(0x333333);
     }
   }
 
   /**
-   * Creates a simple button to toggle the Settings Menu.
-   */
-  private createSettingsButton(): void {
-    this.settingsButton = this.add
-      .text(50, this.cameras.main.height - 50, "⚙", {
-        ...Constants.DEFAULT_FONT,
-        fontSize: "32px",
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-
-    this.settingsButton.on("pointerdown", () => {
-      this.inputManager.setEnabled(false);
-      new SettingsOverlay(this);
-    });
-  }
-
-  /**
-   * Re-Calculates the positioning
-   * after Resizing
+   * Re-Calculates the positioning after Resizing.
    */
   private repositionUI(): void {
     const { width, height } = this.scale;
     const margin = 20;
 
-    if (this.scoreManager.element) {
+    if (this.scoreManager && this.scoreManager.element) {
       this.scoreManager.element.setPosition(margin, margin);
     }
 
     if (this.settingsButton) {
-      this.settingsButton.setPosition(50, height - 50);
+      this.settingsButton.setPosition(60, height - 80);
     }
 
-    if (this.shuffleButtonContainer) {
-      this.shuffleButtonContainer.setPosition(width - 150, height - 80);
+    if (this.shuffleButton) {
+      this.shuffleButton.setPosition(width - 150, height - 80);
     }
   }
 }
