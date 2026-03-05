@@ -308,6 +308,17 @@ export class BoardManager implements Manager {
         }
       }
     }
+
+    this.scene.time.delayedCall(300, () => {
+      const matches = BoardLogic.getAllMatches(this.getNumericGrid());
+      if (matches.length > 0) {
+        this.handleMatches(1);
+      } else {
+        this.callbacks.onSequenceComplete(
+          BoardLogic.hasValidMoves(this.getNumericGrid()),
+        );
+      }
+    });
   }
 
   /**
