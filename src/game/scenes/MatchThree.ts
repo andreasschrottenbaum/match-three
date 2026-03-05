@@ -42,7 +42,7 @@ export class MatchThree extends Scene {
    * Initializes layout constants based on current screen dimensions.
    */
   init(): void {
-    this.shuffleCharges = GameConfig.grid.shuffleCharges;
+    this.shuffleCharges = GameConfig.shuffleCharges;
     this.calculateLayout();
   }
 

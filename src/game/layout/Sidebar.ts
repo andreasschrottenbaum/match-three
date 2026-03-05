@@ -1,6 +1,6 @@
 import { Scene, Geom } from "phaser";
 import { BaseLayoutArea } from "./BaseLayoutArea";
-import { Button } from "./Button";
+import { Button } from "../ui/Button";
 import { LAYOUT, COLORS, getNumColor } from "../config/Theme";
 
 /**
@@ -61,16 +61,13 @@ export class Sidebar extends BaseLayoutArea {
    * Initializes the buttons for the sidebar
    */
   private createButtons(): void {
-    const buttonLabels = ["SHUFFLE", "HINT", "RESTART"];
-
-    buttonLabels.forEach((label) => {
-      const btn = new Button(this.scene, 0, 0, {
-        text: label,
-        callback: () => null,
-      });
-
-      this.add(btn);
-      this.buttons.push(btn);
+    const settingsBtn = new Button(this.scene, 100, 0, {
+      text: "SETTINGS",
+      callback: () => {
+        this.scene.events.emit("UI_OPEN_SETTINGS");
+      },
     });
+    this.add(settingsBtn);
+    this.buttons.push(settingsBtn);
   }
 }

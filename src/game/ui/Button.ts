@@ -59,6 +59,14 @@ export class Button extends GameObjects.Container {
   }
 
   /**
+   * Updates the Label of a Button
+   * @param text New Text to display
+   */
+  public setText(text: string): void {
+    this.label.text = text;
+  }
+
+  /**
    * Set up pointer events for hover and click states
    */
   private setupEvents(): void {

@@ -32,6 +32,7 @@ export class LayoutManager {
   public update(): void {
     const { width, height } = this.scene.scale;
     const isLandscape = width > height;
+    const fullRect = new Geom.Rectangle(0, 0, width, height);
 
     // Temporary rectangles to store calculated bounds
     const bounds: Bounds = {
@@ -39,6 +40,7 @@ export class LayoutManager {
       sidebar: new Geom.Rectangle(),
       content: new Geom.Rectangle(),
       footer: new Geom.Rectangle(),
+      settings: fullRect,
     };
 
     if (isLandscape) {

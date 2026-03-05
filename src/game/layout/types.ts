@@ -5,6 +5,6 @@ export type LayoutAreas = {
   footer: Phaser.Geom.Rectangle;
 };
 
-export type AreaName = "content" | "footer" | "header" | "sidebar";
+export type AreaName = "content" | "footer" | "header" | "sidebar" | "settings";
 
 export type Bounds = Record<AreaName, Phaser.Geom.Rectangle>;
