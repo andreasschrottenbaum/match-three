@@ -63,7 +63,7 @@ export class Button extends GameObjects.Container {
    * @param text New Text to display
    */
   public setText(text: string): void {
-    this.label.text = text;
+    this.label.setText(text);
   }
 
   /**
