@@ -1,42 +1,32 @@
 import { Scene, Geom, GameObjects } from "phaser";
 import { BaseOverlay } from "./BaseOverlay";
 import { Button } from "../ui/Button";
-import { GameConfig } from "../config/GameConfig";
+import { GameConfig, GameSettings } from "../config/GameConfig";
 import { COLORS } from "../config/Theme";
 import { Stepper } from "../ui/Stepper";
 
 export class SettingsView extends BaseOverlay {
   private title: GameObjects.Text;
-  private closeBtn: Button;
+  private saveBtn: Button;
+  private cancelBtn: Button;
 
+  private draftSettings!: GameSettings;
   private sizeStepper!: Stepper;
   private varietyStepper!: Stepper;
 
   constructor(scene: Scene) {
     super(scene);
 
-    this.title = scene.add
-      .text(0, 0, "SETTINGS", {
-        fontSize: "32px",
-        color: COLORS.WHITE,
-      })
-      .setOrigin(0.5);
+    // Initial clone of the global config
+    this.copySettingsToDraft();
+    this.createUI();
 
-    this.closeBtn = new Button(scene, 0, 0, {
-      text: "CLOSE",
-      callback: () => this.hide(),
-    });
+    // Listen for the open command.
+    // We use 'on' and should ideally clean this up in a shutdown listener.
+    const openHandler = () => {
+      this.copySettingsToDraft();
+      this.refreshUI();
 
-    this.createGridSettings();
-
-    this.add([
-      this.title,
-      this.closeBtn,
-      this.sizeStepper,
-      this.varietyStepper,
-    ]);
-
-    this.scene.events.on("UI_OPEN_SETTINGS", () => {
       const fullRect = new Geom.Rectangle(
         0,
         0,
@@ -44,45 +34,120 @@ export class SettingsView extends BaseOverlay {
         this.scene.scale.height,
       );
       this.show(fullRect);
+    };
+
+    this.scene.events.on("UI_OPEN_SETTINGS", openHandler);
+
+    // Cleanup to prevent memory leaks when scene is destroyed
+    this.scene.events.once("shutdown", () => {
+      this.scene.events.off("UI_OPEN_SETTINGS", openHandler);
     });
   }
 
-  private createGridSettings() {
+  /**
+   * Creates a deep copy of the current GameConfig using native structuredClone.
+   */
+  private copySettingsToDraft(): void {
+    this.draftSettings = structuredClone(GameConfig);
+  }
+
+  /**
+   * Initializes all UI components and adds them to the container.
+   */
+  private createUI(): void {
+    this.title = this.scene.add
+      .text(0, 0, "SETTINGS", {
+        fontSize: "32px",
+        color: COLORS.WHITE,
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+
+    this.saveBtn = new Button(this.scene, 0, 0, {
+      text: "SAVE & RESTART",
+      callback: () => this.applySettings(),
+    });
+
+    this.cancelBtn = new Button(this.scene, 0, 0, {
+      text: "CLOSE",
+      callback: () => this.hide(),
+    });
+
+    // Stepper for Grid Dimensions
     this.sizeStepper = new Stepper(this.scene, 0, 0, {
       label: "GRID SIZE",
-      value: GameConfig.grid.size,
+      value: this.draftSettings.grid.size,
       min: 4,
       max: 12,
       onChange: (val: number) => {
-        GameConfig.grid.size = val;
-        this.scene.events.emit("SETTINGS_CHANGED", GameConfig);
+        this.draftSettings.grid.size = val;
+        // No global event fired here to keep it draft-only
       },
     });
 
-    this.varietyStepper = new Stepper(this.scene, 0, 100, {
+    // Stepper for Color/Symbol Variety
+    this.varietyStepper = new Stepper(this.scene, 0, 0, {
       label: "TILE VARIETY",
-      value: GameConfig.grid.variety,
+      value: this.draftSettings.grid.variety,
       min: 3,
       max: 12,
       onChange: (val: number) => {
-        GameConfig.grid.variety = val;
-        this.scene.events.emit("SETTINGS_CHANGED", GameConfig);
+        this.draftSettings.grid.variety = val;
       },
     });
+
+    this.add([
+      this.title,
+      this.saveBtn,
+      this.cancelBtn,
+      this.sizeStepper,
+      this.varietyStepper,
+    ]);
   }
 
+  /**
+   * Handles layout and positioning for the overlay components.
+   */
   public resize(rect: Geom.Rectangle): void {
-    // Redraw Dimmer
     this.drawDimmer(rect);
 
     const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
 
-    this.sizeStepper.setPosition(centerX, rect.height / 2 - 60);
-    this.varietyStepper.setPosition(centerX, rect.height / 2 + 60);
+    // Position Steppers
+    this.sizeStepper.setPosition(centerX, centerY - 60);
+    this.varietyStepper.setPosition(centerX, centerY + 60);
 
-    // Center UI elements
-    this.title.setPosition(rect.width / 2, 100);
-    this.closeBtn.setPosition(rect.width / 2, rect.height - 100);
-    this.closeBtn.resize(200, 50);
+    // Position Title
+    this.title.setPosition(centerX, 100);
+
+    // Position Buttons (Bottom Area)
+    const btnSpacing = 112; // Half of total gap + half button width
+    this.saveBtn.setPosition(centerX + btnSpacing, rect.height - 100);
+    this.saveBtn.resize(200, 50);
+
+    this.cancelBtn.setPosition(centerX - btnSpacing, rect.height - 100);
+    this.cancelBtn.resize(200, 50);
+  }
+
+  /**
+   * Commits draft changes back to global GameConfig and triggers game restart.
+   */
+  private applySettings(): void {
+    // Deep commit
+    GameConfig.grid.size = this.draftSettings.grid.size;
+    GameConfig.grid.variety = this.draftSettings.grid.variety;
+
+    // Notify the game that configuration has officially changed
+    this.scene.events.emit("SETTINGS_CHANGED", GameConfig);
+    this.hide();
+  }
+
+  /**
+   * Syncs the Stepper components with the current draft settings.
+   */
+  private refreshUI(): void {
+    this.sizeStepper.setValue(this.draftSettings.grid.size);
+    this.varietyStepper.setValue(this.draftSettings.grid.variety);
   }
 }
