@@ -1,8 +1,12 @@
 import { Scene, Geom } from "phaser";
 import { BaseLayoutArea } from "./BaseLayoutArea";
 import { Button } from "./Button";
-import { COLORS, getNumColor, LAYOUT } from "../config/Theme";
+import { LAYOUT, COLORS, getNumColor } from "../config/Theme";
 
+/**
+ * Sidebar component that acts as a vertical column in landscape
+ * and a horizontal toolbar in portrait mode.
+ */
 export class Sidebar extends BaseLayoutArea {
   private buttons: Button[] = [];
 
@@ -12,44 +16,57 @@ export class Sidebar extends BaseLayoutArea {
   }
 
   /**
-   * Reacts to layout changes provided by the LayoutManager
+   * Reacts to layout changes provided by the LayoutManager.
+   * Aligns buttons vertically or horizontally based on area dimensions.
    */
   public resize(rect: Geom.Rectangle): void {
+    // Draw area background
     this.drawBackground(rect, getNumColor(COLORS.UI_BG_LIGHT));
 
-    const isLandscape = rect.width < rect.height;
+    // Determine orientation based on area aspect ratio
+    const isAreaPortrait = rect.width < rect.height;
     const padding = LAYOUT.PADDING;
+    const gap = 10; // Space between buttons
 
-    // Calculate dynamic button sizes
-    const btnWidth = isLandscape ? rect.width - padding * 2 : 120;
-    const btnHeight = isLandscape ? 50 : rect.height - padding * 2;
+    // Calculate dynamic button dimensions
+    const btnWidth = isAreaPortrait ? rect.width - padding * 2 : 120;
+    const btnHeight = isAreaPortrait ? 50 : rect.height - padding * 2;
 
-    this.buttons.forEach((btn, index) => {
-      if (isLandscape) {
-        // Vertical stack for Landscape
-        const spacing = btnHeight + 10;
-        const startY = 100; // Offset from top
-        btn.setPosition(rect.width / 2, startY + index * spacing);
+    // Calculate total size of the button group for centering
+    const totalGroupSize =
+      this.buttons.length * (isAreaPortrait ? btnHeight : btnWidth) +
+      (this.buttons.length - 1) * gap;
+
+    // Find the starting center position to keep the group centered in the area
+    let currentPos = isAreaPortrait
+      ? (rect.height - totalGroupSize) / 2 + btnHeight / 2
+      : (rect.width - totalGroupSize) / 2 + btnWidth / 2;
+
+    // Reposition and resize each button
+    this.buttons.forEach((btn) => {
+      if (isAreaPortrait) {
+        // Vertical stack (Landscape layout of the game)
+        btn.setPosition(rect.width / 2, currentPos);
+        currentPos += btnHeight + gap;
       } else {
-        // Horizontal row for Portrait
-        const spacing = btnWidth + 10;
-        const startX = 100; // Offset from left
-        btn.setPosition(startX + index * spacing, rect.height / 2);
+        // Horizontal row (Portrait layout of the game)
+        btn.setPosition(currentPos, rect.height / 2);
+        currentPos += btnWidth + gap;
       }
-
       btn.resize(btnWidth, btnHeight);
     });
   }
 
-  private createButtons() {
+  /**
+   * Initializes the buttons for the sidebar
+   */
+  private createButtons(): void {
     const buttonLabels = ["SHUFFLE", "HINT", "RESTART"];
 
     buttonLabels.forEach((label) => {
       const btn = new Button(this.scene, 0, 0, {
-        width: 100,
-        height: 50,
         text: label,
-        callback: () => console.log(`${label} clicked`),
+        callback: () => null,
       });
 
       this.add(btn);

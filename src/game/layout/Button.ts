@@ -6,10 +6,12 @@ import { COLORS, getNumColor } from "../config/Theme";
  */
 export type ButtonConfig = {
   text: string;
-  width: number;
-  height: number;
+  width?: number;
+  height?: number;
   callback: () => void;
 };
+
+type InternalButtonConfig = Required<ButtonConfig>;
 
 /**
  * A responsive button component that handles its own interaction states
@@ -18,11 +20,16 @@ export type ButtonConfig = {
 export class Button extends GameObjects.Container {
   private background: GameObjects.Graphics;
   private label: GameObjects.Text;
-  private config: ButtonConfig;
+  private config: InternalButtonConfig;
 
   constructor(scene: Scene, x: number, y: number, config: ButtonConfig) {
     super(scene, x, y);
-    this.config = config;
+
+    this.config = {
+      width: 0,
+      height: 0,
+      ...config,
+    } as InternalButtonConfig;
 
     // 1. Initialize background graphics
     this.background = scene.add.graphics();
@@ -37,8 +44,8 @@ export class Button extends GameObjects.Container {
     // 3. Define the hit area (centered around 0,0)
     this.setInteractive(
       new Geom.Rectangle(
-        -config.width / 2,
-        -config.height / 2,
+        -this.config.width / 2,
+        -this.config.height / 2,
         config.width,
         config.height,
       ),
