@@ -9,6 +9,13 @@ export default {
     strokeThickness: 4,
   },
 
+  UI_MARGINS: {
+    BOTTOM: 80,
+    SIDE: 150,
+    SMALL_BTN: 60,
+    SCORE: 20,
+  },
+
   DEPTH_LAYERS: {
     PARTICLES: 5,
     TILES: 10,

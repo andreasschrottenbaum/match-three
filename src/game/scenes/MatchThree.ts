@@ -62,9 +62,8 @@ export class MatchThree extends Scene {
    * Bootstraps the game managers and the initial board state.
    */
   create(): void {
-    this.calculateLayout();
-
     this.cameras.main.setSize(this.scale.width, this.scale.height);
+    this.calculateLayout();
 
     const managers: Manager[] = [];
 
@@ -128,7 +127,6 @@ export class MatchThree extends Scene {
     // Lifecycle: Cleanup on shutdown
     this.events.once("shutdown", () => {
       managers.forEach((manager) => manager.destroy());
-      this.scale.off("resize");
     });
 
     // Handle Window Resizing
@@ -172,7 +170,7 @@ export class MatchThree extends Scene {
    * Calculates the positioning of the Game Grid.
    */
   private calculateLayout(): void {
-    const { width, height } = this.cameras.main;
+    const { width, height } = this.scale;
 
     const verticalPadding = 200;
     const horizontalPadding = 40;
@@ -202,13 +200,11 @@ export class MatchThree extends Scene {
    * Initializes UI elements using UIUtils for visual consistency.
    */
   private createUI(): void {
-    const { width, height } = this.cameras.main;
-
     // Shuffle Button
     this.shuffleButton = UIUtils.createButton(
       this,
-      width - 150,
-      height - 80,
+      0,
+      0,
       `SHUFFLE (${this.shuffleCharges})`,
       () => this.handleShuffle(),
     );
@@ -219,18 +215,14 @@ export class MatchThree extends Scene {
     ) as Phaser.GameObjects.Text;
 
     // Settings Button
-    this.settingsButton = UIUtils.createButton(
-      this,
-      60,
-      height - 80,
-      "⚙",
-      () => {
-        if (this.inputManager.getEnabled()) {
-          this.inputManager.setEnabled(false);
-          new SettingsOverlay(this);
-        }
-      },
-    );
+    this.settingsButton = UIUtils.createButton(this, 0, 0, "⚙", () => {
+      if (this.inputManager.getEnabled()) {
+        this.inputManager.setEnabled(false);
+        new SettingsOverlay(this);
+      }
+    });
+
+    this.repositionUI();
   }
 
   /**
@@ -352,18 +344,26 @@ export class MatchThree extends Scene {
    */
   private repositionUI(): void {
     const { width, height } = this.scale;
-    const margin = 20;
 
     if (this.scoreManager && this.scoreManager.element) {
-      this.scoreManager.element.setPosition(margin, margin);
+      this.scoreManager.element.setPosition(
+        Constants.UI_MARGINS.SCORE,
+        Constants.UI_MARGINS.SCORE,
+      );
     }
 
     if (this.settingsButton) {
-      this.settingsButton.setPosition(60, height - 80);
+      this.settingsButton.setPosition(
+        Constants.UI_MARGINS.SMALL_BTN,
+        height - Constants.UI_MARGINS.BOTTOM,
+      );
     }
 
     if (this.shuffleButton) {
-      this.shuffleButton.setPosition(width - 150, height - 80);
+      this.shuffleButton.setPosition(
+        width - Constants.UI_MARGINS.SIDE,
+        height - Constants.UI_MARGINS.BOTTOM,
+      );
     }
   }
 }
