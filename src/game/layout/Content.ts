@@ -47,6 +47,7 @@ export class Content extends BaseLayoutArea {
 
     this.prepareResources();
     this.scene.events.on("SETTINGS_CHANGED", () => this.handleReset());
+    this.scene.events.on("GAME_SHUFFLE", () => this.handleShuffle());
   }
 
   /**
@@ -169,6 +170,8 @@ export class Content extends BaseLayoutArea {
     const matches = this.model.findMatches();
     if (matches.length === 0) return;
 
+    this.scene.events.emit("TILES_CLEARED", matches.length);
+
     matches.forEach((pos) => {
       const key = `${pos.row}-${pos.col}`;
       const tile = this.tiles.get(key);
@@ -183,6 +186,40 @@ export class Content extends BaseLayoutArea {
 
     this.model.clearMatches(matches);
     this.scene.time.delayedCall(250, () => this.applyGravity());
+  }
+
+  /**
+   * Shuffles the board and performs a re-spawn animation for all tiles.
+   */
+  private handleShuffle(): void {
+    if (this.isAnimating) return;
+    this.isAnimating = true;
+
+    this.model.shuffle();
+
+    let completed = 0;
+
+    this.tiles.forEach((tile, key) => {
+      const [row, col] = key.split("-").map(Number);
+      const type = this.model.getTile(row, col);
+
+      // Update color and visual state
+      tile.setFillStyle(this.getTileColor(type));
+
+      // Animate tiles falling back in from the top for a "reset" feel
+      const targetY = tile.y;
+      tile.y -= 500; // Start from above the screen
+
+      this.animator.drop(tile, targetY, row * 20, () => {
+        completed++;
+        if (completed === this.tiles.size) {
+          this.isAnimating = false;
+          // Check if the shuffle (by accident) created new matches
+          // (though model.shuffle should prevent this)
+          this.checkNextChain();
+        }
+      });
+    });
   }
 
   /**

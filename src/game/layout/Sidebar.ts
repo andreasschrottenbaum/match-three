@@ -1,73 +1,162 @@
-import { Scene, Geom } from "phaser";
+import { Scene, Geom, GameObjects } from "phaser";
 import { BaseLayoutArea } from "./BaseLayoutArea";
 import { Button } from "../ui/Button";
 import { LAYOUT, COLORS, getNumColor } from "../config/Theme";
 
 /**
- * Sidebar component that acts as a vertical column in landscape
- * and a horizontal toolbar in portrait mode.
+ * Sidebar component managing game stats and control buttons.
+ * Adapts its layout based on the available space (Vertical vs Horizontal).
  */
 export class Sidebar extends BaseLayoutArea {
   private buttons: Button[] = [];
+  private scoreHeader!: GameObjects.Text;
+  private scoreText!: GameObjects.Text;
+  private score: number = 0;
 
   constructor(scene: Scene) {
     super(scene);
+    this.setupScoreDisplay();
     this.createButtons();
+
+    // Listen for tile matches to update score
+    this.scene.events.on("TILES_CLEARED", (count: number) =>
+      this.updateScore(count),
+    );
   }
 
   /**
-   * Reacts to layout changes provided by the LayoutManager.
-   * Aligns buttons vertically or horizontally based on area dimensions.
+   * Initializes the score text object.
    */
-  public resize(rect: Geom.Rectangle): void {
-    // Draw area background
-    this.drawBackground(rect, getNumColor(COLORS.UI_BG_LIGHT));
+  private setupScoreDisplay(): void {
+    this.scoreHeader = this.scene.add
+      .text(0, 0, "SCORE", {
+        fontSize: "24px",
+        color: "#ffffff",
+        align: "center",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
 
-    // Determine orientation based on area aspect ratio
-    const isAreaPortrait = rect.width < rect.height;
-    const padding = LAYOUT.PADDING;
-    const gap = 10; // Space between buttons
-
-    // Calculate dynamic button dimensions
-    const btnWidth = isAreaPortrait ? rect.width - padding * 2 : 120;
-    const btnHeight = isAreaPortrait ? 50 : rect.height - padding * 2;
-
-    // Calculate total size of the button group for centering
-    const totalGroupSize =
-      this.buttons.length * (isAreaPortrait ? btnHeight : btnWidth) +
-      (this.buttons.length - 1) * gap;
-
-    // Find the starting center position to keep the group centered in the area
-    let currentPos = isAreaPortrait
-      ? (rect.height - totalGroupSize) / 2 + btnHeight / 2
-      : (rect.width - totalGroupSize) / 2 + btnWidth / 2;
-
-    // Reposition and resize each button
-    this.buttons.forEach((btn) => {
-      if (isAreaPortrait) {
-        // Vertical stack (Landscape layout of the game)
-        btn.setPosition(rect.width / 2, currentPos);
-        currentPos += btnHeight + gap;
-      } else {
-        // Horizontal row (Portrait layout of the game)
-        btn.setPosition(currentPos, rect.height / 2);
-        currentPos += btnWidth + gap;
-      }
-      btn.resize(btnWidth, btnHeight);
-    });
+    this.scoreText = this.scene.add
+      .text(0, 0, "0", {
+        fontSize: "24px",
+        color: "#ffffff",
+        align: "center",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    this.add([this.scoreHeader, this.scoreText]);
   }
 
   /**
-   * Initializes the buttons for the sidebar
+   * Creates the control buttons for the sidebar.
    */
   private createButtons(): void {
-    const settingsBtn = new Button(this.scene, 100, 0, {
-      text: "SETTINGS",
-      callback: () => {
-        this.scene.events.emit("UI_OPEN_SETTINGS");
-      },
+    // Shuffle Button (Placeholder for next step)
+    const shuffleBtn = new Button(this.scene, 0, 0, {
+      text: "SHUFFLE",
+      callback: () => this.scene.events.emit("GAME_SHUFFLE"),
     });
+
+    // Settings Button
+    const settingsBtn = new Button(this.scene, 0, 0, {
+      text: "SETTINGS",
+      callback: () => this.scene.events.emit("UI_OPEN_SETTINGS"),
+    });
+
+    this.add(shuffleBtn);
     this.add(settingsBtn);
-    this.buttons.push(settingsBtn);
+    this.buttons = [shuffleBtn, settingsBtn];
+  }
+
+  /**
+   * Updates the score value and triggers a small visual feedback.
+   * @param count - Number of tiles cleared in the match.
+   */
+  private updateScore(count: number): void {
+    this.score += count * 10;
+    this.scoreText.setText(this.score + "");
+
+    this.scene.tweens.add({
+      targets: this.scoreText,
+      scale: 1.2,
+      duration: 100,
+      yoyo: true,
+      ease: "Quad.easeOut",
+    });
+  }
+
+  /**
+   * Aligns the score and buttons dynamically based on area dimensions.
+   */
+  public resize(rect: Geom.Rectangle): void {
+    this.drawBackground(rect, getNumColor(COLORS.UI_BG_LIGHT));
+
+    const isVertical = rect.height > rect.width;
+    const padding = LAYOUT.PADDING;
+    const gap = 20;
+
+    if (isVertical) {
+      this.layoutVertical(rect, padding, gap);
+    } else {
+      this.layoutHorizontal(rect, padding, gap);
+    }
+  }
+
+  /**
+   * Layout logic for Landscape Mode (Sidebar is a vertical column).
+   * Score at the top, buttons at the bottom.
+   */
+  private layoutVertical(
+    rect: Geom.Rectangle,
+    padding: number,
+    gap: number,
+  ): void {
+    const btnWidth = rect.width - padding * 2;
+    const btnHeight = 50;
+
+    this.scoreHeader.setPosition(rect.width / 2, padding * 2);
+
+    // Position Score at the top
+    this.scoreText.setOrigin(0.5);
+    this.scoreText.setPosition(rect.width / 2, padding * 3.5);
+
+    // Position Buttons at the bottom, stacked upwards
+    let currentY = rect.height - padding - btnHeight / 2;
+
+    // Reverse array to place the last button (Settings) at the very bottom
+    [...this.buttons].reverse().forEach((btn) => {
+      btn.setPosition(rect.width / 2, currentY);
+      btn.resize(btnWidth, btnHeight);
+      currentY -= btnHeight + gap;
+    });
+  }
+
+  /**
+   * Layout logic for Portrait Mode (Sidebar is a horizontal toolbar).
+   * Score on the left, buttons on the right.
+   */
+  private layoutHorizontal(
+    rect: Geom.Rectangle,
+    padding: number,
+    gap: number,
+  ): void {
+    const btnWidth = 120;
+    const btnHeight = rect.height - padding * 2;
+
+    this.scoreHeader.setPosition(padding * 3, rect.height / 2);
+
+    // Position Score on the far left
+    this.scoreText.setOrigin(0, 0.5);
+    this.scoreText.setPosition(padding * 6, rect.height / 2);
+
+    // Position Buttons on the right, stacked leftwards
+    let currentX = rect.width - padding - btnWidth / 2;
+
+    [...this.buttons].reverse().forEach((btn) => {
+      btn.setPosition(currentX, rect.height / 2);
+      btn.resize(btnWidth, btnHeight);
+      currentX -= btnWidth + gap;
+    });
   }
 }

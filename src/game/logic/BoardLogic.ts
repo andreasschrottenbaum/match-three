@@ -209,7 +209,7 @@ class BoardLogic {
    * @param rows - Number of rows.
    * @param cols - Number of columns.
    * @param typeCount - How many different tile types exist.
-   * @param randomFn - A function that returns a float between 0 and 1 (e.g., Phaser's rnd.frac).
+   * @param randomFn - A function that returns a float between 0 and 1.
    * @returns A fully initialized grid of TileIDs.
    */
   static createRandomGrid(
@@ -230,7 +230,7 @@ class BoardLogic {
 
   /**
    * Iteratively replaces tiles that are part of a match until the grid is stable.
-   * Purely operates on numeric data.
+   * Used during initial board generation to prevent auto-matches.
    * @param grid - The grid to stabilize.
    * @param typeCount - Number of available tile types.
    * @param randomFn - Random number generator function.
@@ -254,9 +254,10 @@ class BoardLogic {
 
   /**
    * Shuffles the current grid until at least one valid move is available.
+   * Ensures the player never gets stuck after a shuffle.
    * @param grid - The current grid state.
    * @param randomFn - Random number generator.
-   * @returns A new shuffled grid.
+   * @returns The shuffled grid.
    */
   static shuffleGrid(
     grid: TileID[][],

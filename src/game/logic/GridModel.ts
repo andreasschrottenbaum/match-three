@@ -1,4 +1,3 @@
-// src/game/logic/GridModel.ts
 import { BoardLogic } from "./BoardLogic";
 import { GameConfig } from "../config/GameConfig";
 import type { TileID, GravityResult, GridPosition } from "../types";
@@ -44,6 +43,37 @@ export class GridModel {
   }
 
   /**
+   * Shuffles the existing tiles on the board until no matches are present.
+   */
+  public shuffle(): void {
+    const flatGrid: number[] = [];
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
+        flatGrid.push(this.grid[r][c]);
+      }
+    }
+
+    // Fisher-Yates shuffle
+    for (let i = flatGrid.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [flatGrid[i], flatGrid[j]] = [flatGrid[j], flatGrid[i]];
+    }
+
+    // Re-populate grid
+    let index = 0;
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
+        this.grid[r][c] = flatGrid[index++];
+      }
+    }
+
+    // Simple recursion: if shuffle created matches, shuffle again
+    if (this.findMatches().length > 0) {
+      this.shuffle();
+    }
+  }
+
+  /**
    * Core Match-3 Step: Apply gravity and return the plan for animations
    */
   public stepGravity(): GravityResult {
@@ -63,14 +93,16 @@ export class GridModel {
   }
 
   /**
-   * Findet alle aktuellen Matches im Grid basierend auf dem aktuellen State.
+   * Finds all current matches in the grid based on the current state.
+   * @returns An array of positions that are part of a match.
    */
   public findMatches(): GridPosition[] {
     return BoardLogic.getAllMatches(this.grid);
   }
 
   /**
-   * Markiert die übergebenen Positionen als leer (-1).
+   * Marks the specified positions as empty (-1).
+   * @param matches - The positions to clear.
    */
   public clearMatches(matches: GridPosition[]): void {
     matches.forEach((pos) => {
@@ -79,44 +111,63 @@ export class GridModel {
   }
 
   /**
-   * Versucht zwei Tiles zu tauschen und prüft, ob dadurch ein Match entsteht.
+   * Attempts to swap two tiles. If no match is created, the swap is reverted.
+   * @returns True if the swap resulted in a match and was kept.
    */
   public trySwap(posA: GridPosition, posB: GridPosition): boolean {
     const typeA = this.getTile(posA.row, posA.col);
     const typeB = this.getTile(posB.row, posB.col);
 
-    // Temporärer Tausch
     this.setTile(posA.row, posA.col, typeB);
     this.setTile(posB.row, posB.col, typeA);
 
     const matches = this.findMatches();
 
     if (matches.length > 0) {
-      return true; // Tausch ist gültig!
+      return true;
     } else {
-      // Rückgängig machen, da kein Match
       this.setTile(posA.row, posA.col, typeA);
       this.setTile(posB.row, posB.col, typeB);
       return false;
     }
   }
 
+  /**
+   * Refills empty grid slots with new random tiles.
+   * @param newTiles - The positions to refill.
+   */
   public refill(newTiles: { row: number; col: number }[]): void {
     const variety = GameConfig.grid.variety;
     newTiles.forEach((pos) => {
-      // Wir weisen jedem neuen Slot einen zufälligen Typ zu
       this.grid[pos.row][pos.col] = Math.floor(Math.random() * variety);
     });
   }
 
+  /**
+   * Retrieves the tile type at a specific grid position.
+   * @param row - The grid row index.
+   * @param col - The grid column index.
+   * @returns The TileID at the specified location.
+   */
   public getTile(row: number, col: number): TileID {
     return this.grid[row][col];
   }
 
+  /**
+   * Updates the tile type at a specific grid position.
+   * @param row - The grid row index.
+   * @param col - The grid column index.
+   * @param type - The new TileID to assign.
+   */
   public setTile(row: number, col: number, type: TileID): void {
     this.grid[row][col] = type;
   }
 
+  /**
+   * Returns the underlying 2D array representation of the grid.
+   * Useful for logic operations that require direct board access.
+   * @returns The 2D array of TileIDs.
+   */
   public getRawGrid(): TileID[][] {
     return this.grid;
   }
