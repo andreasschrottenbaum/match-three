@@ -307,7 +307,8 @@ export class Content extends BaseLayoutArea {
    */
   private getTileColor(type: number): number {
     const palette = [
-      0xff595e, 0xffca3a, 0x8ac926, 0x1982c4, 0x6a4c93, 0xff924c,
+      0xff595e, 0xffca3a, 0x8ac926, 0x1982c4, 0x6a4c93, 0xff924c, 0x52e3e1,
+      0xfb6f92, 0xd8f3dc, 0x666666, 0xff87ab, 0x9c6644,
     ];
     return palette[type % palette.length];
   }

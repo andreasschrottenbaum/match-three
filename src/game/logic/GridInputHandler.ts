@@ -1,5 +1,6 @@
 import { GridPosition } from "../types";
 import { GameConfig } from "../config/GameConfig";
+import { Input } from "phaser";
 
 /**
  * Handles all user input interactions for the grid, including clicks and swipes.
@@ -33,44 +34,50 @@ export class GridInputHandler {
     onSelect: (pos: GridPosition | null) => void,
     onSwap: (a: GridPosition, b: GridPosition) => void,
   ): void {
-    this.scene.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
-      const pos = this.getGridPos(p);
-      if (!pos) return;
+    this.scene.input.on(
+      Input.Events.POINTER_DOWN,
+      (p: Phaser.Input.Pointer) => {
+        const pos = this.getGridPos(p);
+        if (!pos) return;
 
-      this.isDragging = true;
-      this.dragStartPos = { x: p.x, y: p.y };
+        this.isDragging = true;
+        this.dragStartPos = { x: p.x, y: p.y };
 
-      if (!this.firstSelection) {
-        this.firstSelection = pos;
-        onSelect(pos);
-      } else if (this.areNeighbors(this.firstSelection, pos)) {
-        onSwap(this.firstSelection, pos);
-        this.resetSelection(onSelect);
-      } else {
-        // Change selection to the new tile
-        this.firstSelection = pos;
-        onSelect(pos);
-      }
-    });
+        if (!this.firstSelection) {
+          this.firstSelection = pos;
+          onSelect(pos);
+        } else if (this.areNeighbors(this.firstSelection, pos)) {
+          onSwap(this.firstSelection, pos);
+          this.resetSelection(onSelect);
+        } else {
+          // Change selection to the new tile
+          this.firstSelection = pos;
+          onSelect(pos);
+        }
+      },
+    );
 
-    this.scene.input.on("pointermove", (p: Phaser.Input.Pointer) => {
-      if (!this.isDragging || !this.dragStartPos || !this.firstSelection)
-        return;
+    this.scene.input.on(
+      Input.Events.POINTER_MOVE,
+      (p: Phaser.Input.Pointer) => {
+        if (!this.isDragging || !this.dragStartPos || !this.firstSelection)
+          return;
 
-      const dx = p.x - this.dragStartPos.x;
-      const dy = p.y - this.dragStartPos.y;
+        const dx = p.x - this.dragStartPos.x;
+        const dy = p.y - this.dragStartPos.y;
 
-      // Check if the drag distance exceeds the threshold for a swipe
-      if (
-        Math.abs(dx) > this.SWIPE_THRESHOLD ||
-        Math.abs(dy) > this.SWIPE_THRESHOLD
-      ) {
-        this.handleSwipe(dx, dy, onSwap, onSelect);
-        this.isDragging = false;
-      }
-    });
+        // Check if the drag distance exceeds the threshold for a swipe
+        if (
+          Math.abs(dx) > this.SWIPE_THRESHOLD ||
+          Math.abs(dy) > this.SWIPE_THRESHOLD
+        ) {
+          this.handleSwipe(dx, dy, onSwap, onSelect);
+          this.isDragging = false;
+        }
+      },
+    );
 
-    this.scene.input.on("pointerup", () => {
+    this.scene.input.on(Input.Events.POINTER_UP, () => {
       this.isDragging = false;
     });
   }
