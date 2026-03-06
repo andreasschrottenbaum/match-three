@@ -9,7 +9,6 @@ A relaxing Match-3 experience built with **Phaser 3**, **TypeScript**, and **Bun
 ## 🚀 Features
 
 - **Zen Mode**: No timers, no pressure. Designed for a relaxing flow-state experience.
-- **Combo System**: Increasing score multipliers for chain reactions.
 - **Smart Grid Logic**: Advanced match detection for horizontal and vertical lines (including 4-way and 5-way bonuses).
 - **Auto-Shuffle**: Intelligent "Deadlock Detection" that automatically reshuffles the board when no valid moves are left, ensuring the game never gets stuck.
 - **Solid Foundation**: Decoupled architecture where the game state lives independently from the visual representation.
@@ -73,6 +72,7 @@ This decoupling allows for lightning-fast unit testing without the overhead of a
 ## 📈 Roadmap
 
 - [ ] Add LocalStorage for Highscores
-- [ ] Implement Particle Effects for matches
+- [x] Implement Particle Effects for matches
+- [ ] Re-Implement Combo Multiplier
 - [ ] Add sound effects and ambient music
 - [ ] Integration/E2E tests with Playwright
