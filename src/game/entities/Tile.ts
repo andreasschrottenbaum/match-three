@@ -161,7 +161,6 @@ export class Tile extends GameObjects.Container {
             s + offset,
           );
         } else {
-          // FIX: The glint itself on the triangle slope.
           // Corrected angle to match the actual left slope.
           const offsetGlint = 4;
           // Start glint a bit further up, and end it before the corner

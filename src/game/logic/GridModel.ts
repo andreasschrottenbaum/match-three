@@ -43,33 +43,16 @@ export class GridModel {
   }
 
   /**
-   * Shuffles the existing tiles on the board until no matches are present.
+   * Shuffles the logical grid data until no matches are present.
+   * This only changes the IDs in the 2D array.
    */
   public shuffle(): void {
-    const flatGrid: number[] = [];
-    for (let r = 0; r < this.rows; r++) {
-      for (let c = 0; c < this.cols; c++) {
-        flatGrid.push(this.grid[r][c]);
-      }
-    }
+    let attempts = 0;
+    this.grid = BoardLogic.shuffleGrid(this.grid);
 
-    // Fisher-Yates shuffle
-    for (let i = flatGrid.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [flatGrid[i], flatGrid[j]] = [flatGrid[j], flatGrid[i]];
-    }
-
-    // Re-populate grid
-    let index = 0;
-    for (let r = 0; r < this.rows; r++) {
-      for (let c = 0; c < this.cols; c++) {
-        this.grid[r][c] = flatGrid[index++];
-      }
-    }
-
-    // Simple recursion: if shuffle created matches, shuffle again
-    if (this.findMatches().length > 0) {
-      this.shuffle();
+    while (this.findMatches().length > 0 && attempts < 100) {
+      this.grid = BoardLogic.shuffleGrid(this.grid);
+      attempts++;
     }
   }
 

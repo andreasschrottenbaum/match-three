@@ -185,6 +185,8 @@ export class Content extends BaseLayoutArea {
       return;
     }
 
+    this.isAnimating = true;
+
     this.scene.events.emit("TILES_CLEARED", matches.length);
 
     matches.forEach((pos) => {
@@ -215,27 +217,58 @@ export class Content extends BaseLayoutArea {
    * Re-shuffles the board logic and performs a fall-in animation.
    */
   private handleShuffle(): void {
-    if (this.isAnimating) return;
+    if (this.isAnimating) {
+      return;
+    }
+
     this.isAnimating = true;
 
-    // Stop all current animations to prevent "ghosting"
     this.tiles.forEach((t) => this.scene.tweens.killTweensOf(t));
 
     this.model.shuffle();
-    let completed = 0;
 
-    this.tiles.forEach((tile, key) => {
-      const [row] = key.split("-").map(Number);
-      const targetY = tile.y;
-      tile.y -= 600; // Reset position to above screen
+    const tileList = Array.from(this.tiles.values());
+    this.tiles.clear();
 
-      this.animator.drop(tile, targetY, row * 20, () => {
-        if (++completed === this.tiles.size) {
-          this.isAnimating = false;
-          this.checkNextChain();
-        }
-      });
-    });
+    const size = GameConfig.grid.size;
+    let tileIndex = 0;
+    let completedCount = 0;
+
+    for (let row = 0; row < size; row++) {
+      for (let col = 0; col < size; col++) {
+        const type = this.model.getTile(row, col);
+        const tile = tileList[tileIndex++];
+        if (!tile) continue;
+
+        tile.updateVisuals(
+          this.gridMetrics.cellSize,
+          this.getTileColor(type),
+          type,
+        );
+        this.tiles.set(`${row}-${col}`, tile);
+
+        const targetX =
+          this.gridMetrics.offsetX +
+          col * this.gridMetrics.cellSize +
+          this.gridMetrics.cellSize / 2;
+        const targetY =
+          this.gridMetrics.offsetY +
+          row * this.gridMetrics.cellSize +
+          this.gridMetrics.cellSize / 2;
+
+        tile.x = targetX;
+        tile.y -= 600;
+
+        this.animator.drop(tile, targetY, row * 20, () => {
+          completedCount++;
+
+          if (completedCount === tileList.length) {
+            this.isAnimating = false;
+            this.checkNextChain();
+          }
+        });
+      }
+    }
   }
 
   /**
