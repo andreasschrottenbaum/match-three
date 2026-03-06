@@ -6,9 +6,11 @@ import { GridModel } from "../logic/GridModel";
 import { GridPosition } from "../types";
 import { GridInputHandler } from "../logic/GridInputHandler";
 import { GridAnimator } from "../logic/GridAnimator";
+import { Tile } from "../entities/Tile";
 
 /**
- * Main gameplay area that coordinates the Model, Animator, and InputHandler.
+ * Main gameplay controller. Coordinates logical state (Model) with visual
+ * representation (Tiles) and handles user interaction.
  */
 export class Content extends BaseLayoutArea {
   private gridGraphics: GameObjects.Graphics;
@@ -18,20 +20,23 @@ export class Content extends BaseLayoutArea {
 
   private lastRect?: Geom.Rectangle;
   private gridMetrics = { offsetX: 0, offsetY: 0, cellSize: 0 };
-  private tiles: Map<string, GameObjects.Rectangle> = new Map();
+  private tiles: Map<string, Tile> = new Map();
   private isAnimating: boolean = false;
   private firstSelection: GridPosition | null = null;
 
   constructor(scene: Scene) {
     super(scene);
+
+    // Initialize Core Logic and Animation systems
     this.model = new GridModel(GameConfig.grid.size, GameConfig.grid.size);
     this.model.generate();
-
     this.animator = new GridAnimator(scene);
+
+    // Layer for static UI elements like highlights and board background
     this.gridGraphics = scene.add.graphics();
     this.add(this.gridGraphics);
 
-    // Initialize the external input handler
+    // Setup input handling via delegation
     this.inputHandler = new GridInputHandler(
       scene,
       this,
@@ -46,12 +51,14 @@ export class Content extends BaseLayoutArea {
     );
 
     this.prepareResources();
+
+    // Global event listeners
     this.scene.events.on("SETTINGS_CHANGED", () => this.handleReset());
     this.scene.events.on("GAME_SHUFFLE", () => this.handleShuffle());
   }
 
   /**
-   * Prepares runtime textures for effects.
+   * Generates runtime assets like the pixel texture for particle effects.
    */
   private prepareResources(): void {
     if (this.scene.textures.exists("white-pixel")) return;
@@ -64,7 +71,7 @@ export class Content extends BaseLayoutArea {
   }
 
   /**
-   * Fully resets the board state and visuals.
+   * Resets the entire grid state and clears all visual tile objects.
    */
   private handleReset(): void {
     this.tiles.forEach((t) => t.destroy());
@@ -75,7 +82,7 @@ export class Content extends BaseLayoutArea {
   }
 
   /**
-   * Layout update triggered by the LayoutManager.
+   * Updates layout and redraws the grid when the screen size changes.
    */
   public resize(rect: Geom.Rectangle): void {
     this.lastRect = rect;
@@ -84,7 +91,8 @@ export class Content extends BaseLayoutArea {
   }
 
   /**
-   * Renders the board background and synchronizes tile positions.
+   * Orchestrates the drawing of the board background, selection highlights,
+   * and synchronizes active tile positions.
    */
   private drawGrid(rect: Geom.Rectangle, selectedTile?: GridPosition): void {
     this.gridGraphics.clear();
@@ -96,12 +104,12 @@ export class Content extends BaseLayoutArea {
     const offsetY = (rect.height - boardSize) / 2;
     this.gridMetrics = { offsetX, offsetY, cellSize };
 
-    // Draw Board Background
+    // Render Board Backdrop
     this.gridGraphics
       .fillStyle(getNumColor(COLORS.BLACK), 0.2)
       .fillRoundedRect(offsetX, offsetY, boardSize, boardSize, 8);
 
-    // Draw Selection Highlight
+    // Render Selection Frame
     if (selectedTile) {
       this.gridGraphics
         .lineStyle(4, 0xffffff)
@@ -114,35 +122,38 @@ export class Content extends BaseLayoutArea {
         );
     }
 
-    // Sync GameObjects with Model
+    // Synchronize View-Entities with the Logical Model
     for (let row = 0; row < size; row++) {
       for (let col = 0; col < size; col++) {
         const type = this.model.getTile(row, col);
         if (type === -1) continue;
+
         const key = `${row}-${col}`;
         const x = offsetX + col * cellSize + cellSize / 2;
         const y = offsetY + row * cellSize + cellSize / 2;
 
         if (!this.tiles.has(key)) {
-          const t = this.scene.add.rectangle(
+          const t = new Tile(
+            this.scene,
             x,
             y,
-            cellSize - 4,
-            cellSize - 4,
+            cellSize,
+            type,
             this.getTileColor(type),
           );
           this.add(t);
           this.tiles.set(key, t);
         } else if (!this.isAnimating) {
           const t = this.tiles.get(key)!;
-          t.setPosition(x, y).setDisplaySize(cellSize - 4, cellSize - 4);
+          t.setPosition(x, y);
+          t.updateVisuals(cellSize, this.getTileColor(type), type);
         }
       }
     }
   }
 
   /**
-   * Executes the logical and visual swap of two tiles.
+   * Processes a swap attempt between two tiles.
    */
   private executeSwap(posA: GridPosition, posB: GridPosition): void {
     const tileA = this.tiles.get(`${posA.row}-${posA.col}`);
@@ -165,57 +176,59 @@ export class Content extends BaseLayoutArea {
 
   /**
    * Identifies matches and triggers destruction sequences.
+   * Ensures visual tiles are removed from the tracking Map immediately to avoid "ghost" tiles.
    */
   private handleMatches(): void {
     const matches = this.model.findMatches();
-    if (matches.length === 0) return;
+    if (matches.length === 0) {
+      this.isAnimating = false;
+      return;
+    }
 
     this.scene.events.emit("TILES_CLEARED", matches.length);
 
     matches.forEach((pos) => {
       const key = `${pos.row}-${pos.col}`;
       const tile = this.tiles.get(key);
+
       if (tile) {
+        // 1. Remove from Map immediately so no other logic (like gravity)
+        // can access this tile during its death animation.
+        this.tiles.delete(key);
+
+        // 2. Visual explosion and destruction
         this.createExplosion(tile.x, tile.y, tile.fillColor);
         this.animator.destroy(tile, () => {
           tile.destroy();
-          this.tiles.delete(key);
         });
       }
     });
 
+    // 3. Update the logical model
     this.model.clearMatches(matches);
-    this.scene.time.delayedCall(250, () => this.applyGravity());
+
+    // 4. Wait for the destruction animation to be halfway done before falling down
+    this.scene.time.delayedCall(200, () => this.applyGravity());
   }
 
   /**
-   * Shuffles the board and performs a re-spawn animation for all tiles.
+   * Re-shuffles the board logic and performs a fall-in animation.
    */
   private handleShuffle(): void {
     if (this.isAnimating) return;
     this.isAnimating = true;
 
     this.model.shuffle();
-
     let completed = 0;
 
     this.tiles.forEach((tile, key) => {
-      const [row, col] = key.split("-").map(Number);
-      const type = this.model.getTile(row, col);
-
-      // Update color and visual state
-      tile.setFillStyle(this.getTileColor(type));
-
-      // Animate tiles falling back in from the top for a "reset" feel
+      const [row] = key.split("-").map(Number);
       const targetY = tile.y;
-      tile.y -= 500; // Start from above the screen
+      tile.y -= 600; // Reset position to above screen
 
       this.animator.drop(tile, targetY, row * 20, () => {
-        completed++;
-        if (completed === this.tiles.size) {
+        if (++completed === this.tiles.size) {
           this.isAnimating = false;
-          // Check if the shuffle (by accident) created new matches
-          // (though model.shuffle should prevent this)
           this.checkNextChain();
         }
       });
@@ -223,7 +236,7 @@ export class Content extends BaseLayoutArea {
   }
 
   /**
-   * Moves existing tiles downward to fill empty slots.
+   * Moves existing tiles down and triggers spawning of new ones.
    */
   private applyGravity(): void {
     const plan = this.model.stepGravity();
@@ -243,35 +256,47 @@ export class Content extends BaseLayoutArea {
   }
 
   /**
-   * Spawns and animates new tiles falling from the top.
+   * Instantiates new tiles above the visible area and animates them dropping in.
    */
   private spawnNewTiles(newTiles: { row: number; col: number }[]): void {
     this.model.refill(newTiles);
     let completed = 0;
+
     newTiles.forEach((pos) => {
       const { offsetX, offsetY, cellSize } = this.gridMetrics;
       const x = offsetX + pos.col * cellSize + cellSize / 2;
       const targetY = offsetY + pos.row * cellSize + cellSize / 2;
 
+      // Start position is far above the grid to create the drop effect
+      const startY = offsetY - cellSize * (GameConfig.grid.size - pos.row + 1);
+
       const type = this.model.getTile(pos.row, pos.col);
-      const t = this.scene.add.rectangle(
+      const t = new Tile(
+        this.scene,
         x,
-        offsetY - cellSize,
-        cellSize - 4,
-        cellSize - 4,
+        startY,
+        cellSize,
+        type,
         this.getTileColor(type),
       );
+
       this.add(t);
       this.tiles.set(`${pos.row}-${pos.col}`, t);
 
-      this.animator.drop(t, targetY, pos.row * 50, () => {
-        if (++completed === newTiles.length) this.checkNextChain();
-      });
+      // Trigger the drop animation with a staggered delay based on row
+      this.animator.drop(
+        t,
+        targetY,
+        (GameConfig.grid.size - pos.row) * 50,
+        () => {
+          if (++completed === newTiles.length) this.checkNextChain();
+        },
+      );
     });
   }
 
   /**
-   * Checks for combo matches after a refill.
+   * Recursive check for chain reactions (cascades).
    */
   private checkNextChain(): void {
     if (this.model.findMatches().length > 0) {
@@ -283,11 +308,12 @@ export class Content extends BaseLayoutArea {
   }
 
   /**
-   * Visual particle effect for tile destruction.
+   * Creates a burst of particles at the specified location.
    */
   private createExplosion(tileX: number, tileY: number, color: number): void {
     const wp = new Phaser.Math.Vector2();
     this.getWorldTransformMatrix().transformPoint(tileX, tileY, wp);
+
     const p = this.scene.add.particles(wp.x, wp.y, "white-pixel", {
       speed: { min: 50, max: 150 },
       scale: { start: 0.4, end: 0 },
@@ -296,14 +322,13 @@ export class Content extends BaseLayoutArea {
       lifespan: 500,
       gravityY: 200,
     });
+
     p.explode(15);
     this.scene.time.delayedCall(600, () => p.destroy());
   }
 
   /**
-   * Returns a hexadecimal color value based on the tile type index.
-   * Uses a predefined palette for consistent tile visuals.
-   * @param type - The numeric ID of the tile type.
+   * Helper to map tile types to colors.
    */
   private getTileColor(type: number): number {
     const palette = [

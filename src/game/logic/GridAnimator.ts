@@ -1,4 +1,5 @@
-import { Scene, GameObjects } from "phaser";
+import { Scene } from "phaser";
+import { Tile } from "../entities/Tile";
 
 /**
  * Handles all visual transitions and animations for the grid tiles.
@@ -11,8 +12,8 @@ export class GridAnimator {
    * If the swap is invalid, it performs a 'shake' or 'return' animation.
    */
   public swap(
-    tileA: GameObjects.Rectangle,
-    tileB: GameObjects.Rectangle,
+    tileA: Tile,
+    tileB: Tile,
     isValid: boolean,
     onComplete: () => void,
   ): void {
@@ -53,7 +54,7 @@ export class GridAnimator {
    * Animates a tile dropping down (gravity) or spawning into the grid.
    */
   public drop(
-    tile: GameObjects.Rectangle,
+    tile: Tile,
     targetY: number,
     delay: number = 0,
     onComplete?: () => void,
@@ -71,7 +72,7 @@ export class GridAnimator {
   /**
    * Performs a shrink and fade-out animation when a tile is matched.
    */
-  public destroy(tile: GameObjects.Rectangle, onComplete: () => void): void {
+  public destroy(tile: Tile, onComplete: () => void): void {
     this.scene.tweens.add({
       targets: tile,
       scale: 0,
