@@ -1,6 +1,7 @@
 import { Scene, Geom, GameObjects } from "phaser";
 import { BaseOverlay } from "./BaseOverlay";
 import { Button } from "../ui/Button";
+import { I18nService } from "../i18n/I18nService";
 
 export class GameOverOverlay extends BaseOverlay {
   private titleText: GameObjects.Text;
@@ -19,19 +20,22 @@ export class GameOverOverlay extends BaseOverlay {
     };
 
     this.titleText = scene.add
-      .text(0, 0, "KEINE ZÜGE MEHR!", {
+      .text(0, 0, I18nService.t("GAME_OVER"), {
         ...style,
         fontStyle: "bold",
       })
       .setOrigin(0.5);
 
     this.scoreText = scene.add
-      .text(0, 0, "Score: 0", { ...style, fontSize: "32px" })
+      .text(0, 0, `${I18nService.t("SCORE")}: 0`, {
+        ...style,
+        fontSize: "32px",
+      })
       .setOrigin(0.5);
 
     // Button initialisieren
     this.retryButton = new Button(this.scene, 0, 0, {
-      text: "RETRY",
+      text: I18nService.t("RESTART"),
       callback: () => {
         this.hide();
         this.scene.events.emit("SETTINGS_CHANGED"); // Reset Game
@@ -49,6 +53,8 @@ export class GameOverOverlay extends BaseOverlay {
     this.scene.events.on("SETTINGS_CHANGED", () => {
       this.finalScore = 0;
       this.updateScore(0);
+      this.titleText.setText(I18nService.t("GAME_OVER"));
+      this.retryButton.setText(I18nService.t("RESTART"));
     });
 
     // Game Over Command
@@ -70,7 +76,7 @@ export class GameOverOverlay extends BaseOverlay {
   }
 
   public updateScore(score: number): void {
-    this.scoreText.setText(`Endstand: ${score}`);
+    this.scoreText.setText(`${I18nService.t("SCORE")}: ${score}`);
   }
 
   public resize(rect: Geom.Rectangle): void {

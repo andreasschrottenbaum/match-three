@@ -4,6 +4,7 @@ import { Button } from "../ui/Button";
 import { GameConfig, GameSettings } from "../config/GameConfig";
 import { COLORS } from "../config/Theme";
 import { Stepper } from "../ui/Stepper";
+import { I18nService } from "../i18n/I18nService";
 
 export class SettingsView extends BaseOverlay {
   private title: GameObjects.Text;
@@ -42,6 +43,14 @@ export class SettingsView extends BaseOverlay {
     this.scene.events.once("shutdown", () => {
       this.scene.events.off("UI_OPEN_SETTINGS", openHandler);
     });
+
+    this.scene.events.on("SETTINGS_CHANGED", () => {
+      this.title.setText(I18nService.t("SETTINGS"));
+      this.sizeStepper.setText(I18nService.t("GRID_SIZE"));
+      this.varietyStepper.setText(I18nService.t("TILE_VARIETY"));
+      this.saveBtn.setText(I18nService.t("SAVE_RESTART"));
+      this.cancelBtn.setText(I18nService.t("CLOSE"));
+    });
   }
 
   /**
@@ -56,7 +65,7 @@ export class SettingsView extends BaseOverlay {
    */
   private createUI(): void {
     this.title = this.scene.add
-      .text(0, 0, "SETTINGS", {
+      .text(0, 0, I18nService.t("SETTINGS"), {
         fontSize: "32px",
         color: COLORS.WHITE,
         fontStyle: "bold",
@@ -64,18 +73,18 @@ export class SettingsView extends BaseOverlay {
       .setOrigin(0.5);
 
     this.saveBtn = new Button(this.scene, 0, 0, {
-      text: "SAVE & RESTART",
+      text: I18nService.t("SAVE_RESTART"),
       callback: () => this.applySettings(),
     });
 
     this.cancelBtn = new Button(this.scene, 0, 0, {
-      text: "CLOSE",
+      text: I18nService.t("CLOSE"),
       callback: () => this.hide(),
     });
 
     // Stepper for Grid Dimensions
     this.sizeStepper = new Stepper(this.scene, 0, 0, {
-      label: "GRID SIZE",
+      label: I18nService.t("GRID_SIZE"),
       value: this.draftSettings.grid.size,
       min: GameConfig.grid.minSize,
       max: GameConfig.grid.maxSize,
@@ -87,7 +96,7 @@ export class SettingsView extends BaseOverlay {
 
     // Stepper for Color/Symbol Variety
     this.varietyStepper = new Stepper(this.scene, 0, 0, {
-      label: "TILE VARIETY",
+      label: I18nService.t("TILE_VARIETY"),
       value: this.draftSettings.grid.variety,
       min: GameConfig.grid.minVariety,
       max: GameConfig.grid.maxVariety,

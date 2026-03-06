@@ -273,21 +273,39 @@ class BoardLogic {
   ): TileID[][] {
     const rows = grid.length;
     const cols = grid[0].length;
-    const flatGrid = grid.flat();
 
-    for (let i = flatGrid.length - 1; i > 0; i--) {
-      const j = Math.floor(randomFn() * (i + 1));
-      [flatGrid[i], flatGrid[j]] = [flatGrid[j], flatGrid[i]];
+    let attempts = 0;
+    const maxAttempts = 100; // Sicherheitsschranke
+    let isValid = false;
+
+    while (!isValid && attempts < maxAttempts) {
+      attempts++;
+
+      // 1. Flachklopfen und Shufflen
+      const flatGrid = grid.flat();
+      for (let i = flatGrid.length - 1; i > 0; i--) {
+        const j = Math.floor(randomFn() * (i + 1));
+        [flatGrid[i], flatGrid[j]] = [flatGrid[j], flatGrid[i]];
+      }
+
+      // 2. Zurück in 2D
+      for (let i = 0; i < rows; i++) {
+        grid[i] = flatGrid.slice(i * cols, (i + 1) * cols);
+      }
+
+      // 3. Matches entfernen (Die Methode hast du ja schon optimiert)
+      this.resolveInitialMatchesInGrid(grid, typeCount);
+
+      // 4. Prüfen, ob das Board spielbar ist
+      if (this.hasValidMoves(grid)) {
+        isValid = true;
+      }
     }
 
-    for (let i = 0; i < rows; i++) {
-      grid[i] = flatGrid.slice(i * cols, (i + 1) * cols);
-    }
-
-    this.resolveInitialMatchesInGrid(grid, typeCount);
-
-    if (!this.hasValidMoves(grid)) {
-      return this.shuffleGrid(grid, typeCount, randomFn);
+    if (attempts >= maxAttempts) {
+      console.warn(
+        "Shuffle: No valid moves found after 100 attempts. Using last state.",
+      );
     }
 
     return grid;

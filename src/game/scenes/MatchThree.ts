@@ -6,11 +6,14 @@ import { Content } from "../layout/Content";
 import { Footer } from "../layout/Footer";
 import { SettingsView } from "../layout/SettingsView";
 import { GameOverOverlay } from "../layout/GameOverOverlay";
+import { I18nService } from "../i18n/I18nService";
 
 export class MatchThree extends Scene {
   private layoutManager: LayoutManager;
 
   create() {
+    I18nService.init();
+
     this.layoutManager = new LayoutManager(this);
 
     // Areas will automatically be added to the scene's display list
@@ -24,5 +27,11 @@ export class MatchThree extends Scene {
 
     // Initial trigger to position everything
     this.layoutManager.update();
+
+    this.input.keyboard?.on("keydown-L", () => {
+      I18nService.toggleLanguage();
+
+      this.events.emit("SETTINGS_CHANGED");
+    });
   }
 }

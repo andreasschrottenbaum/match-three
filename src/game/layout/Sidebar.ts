@@ -3,6 +3,7 @@ import { BaseLayoutArea } from "./BaseLayoutArea";
 import { Button } from "../ui/Button";
 import { LAYOUT, COLORS, getNumColor } from "../config/Theme";
 import { GameConfig } from "../config/GameConfig";
+import { I18nService } from "../i18n/I18nService";
 
 /**
  * Sidebar component managing game stats and control buttons.
@@ -14,6 +15,7 @@ export class Sidebar extends BaseLayoutArea {
   private scoreText!: GameObjects.Text;
   private score: number = 0;
   private shuffleBtn: Button;
+  private settingsBtn: Button;
 
   constructor(scene: Scene) {
     super(scene);
@@ -26,13 +28,20 @@ export class Sidebar extends BaseLayoutArea {
     );
 
     this.scene.events.on("UPDATE_SHUFFLE_UI", () => {
-      this.shuffleBtn.setText(`SHUFFLE (${GameConfig.shuffleCharges})`);
+      this.shuffleBtn.setText(
+        `${I18nService.t("SHUFFLE")} (${GameConfig.shuffleCharges})`,
+      );
+      this.shuffleBtn.setDisabled(GameConfig.shuffleCharges <= 0);
+    });
 
-      if (!GameConfig.shuffleCharges) {
-        this.shuffleBtn.setDisabled(true);
-      } else {
-        this.shuffleBtn.setDisabled(false);
-      }
+    this.scene.events.on("SETTINGS_CHANGED", () => {
+      this.score = 0;
+      this.scoreText.setText(this.score.toString());
+      this.scoreHeader.setText(I18nService.t("SCORE"));
+      this.shuffleBtn.setText(
+        `${I18nService.t("SHUFFLE")} (${GameConfig.shuffleCharges})`,
+      );
+      this.settingsBtn.setText(I18nService.t("SETTINGS"));
     });
   }
 
@@ -41,7 +50,7 @@ export class Sidebar extends BaseLayoutArea {
    */
   private setupScoreDisplay(): void {
     this.scoreHeader = this.scene.add
-      .text(0, 0, "SCORE", {
+      .text(0, 0, I18nService.t("SCORE"), {
         fontSize: "24px",
         color: "#ffffff",
         align: "center",
@@ -66,19 +75,19 @@ export class Sidebar extends BaseLayoutArea {
   private createButtons(): void {
     // Shuffle Button (Placeholder for next step)
     this.shuffleBtn = new Button(this.scene, 0, 0, {
-      text: `SHUFFLE (${GameConfig.shuffleCharges})`,
+      text: `${I18nService.t("SHUFFLE")} (${GameConfig.shuffleCharges})`,
       callback: () => this.scene.events.emit("GAME_SHUFFLE"),
     });
 
     // Settings Button
-    const settingsBtn = new Button(this.scene, 0, 0, {
-      text: "SETTINGS",
+    this.settingsBtn = new Button(this.scene, 0, 0, {
+      text: I18nService.t("SETTINGS"),
       callback: () => this.scene.events.emit("UI_OPEN_SETTINGS"),
     });
 
     this.add(this.shuffleBtn);
-    this.add(settingsBtn);
-    this.buttons = [this.shuffleBtn, settingsBtn];
+    this.add(this.settingsBtn);
+    this.buttons = [this.shuffleBtn, this.settingsBtn];
   }
 
   /**

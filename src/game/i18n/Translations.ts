@@ -1,0 +1,26 @@
+export const Translations = {
+  en: {
+    SCORE: "SCORE",
+    SETTINGS: "SETTINGS",
+    GRID_SIZE: "GRID SIZE",
+    TILE_VARIETY: "TILE VARIETY",
+    SAVE_RESTART: "SAVE & RESTART",
+    CLOSE: "CLOSE",
+    SHUFFLE: "SHUFFLE",
+    GAME_OVER: "NO MORE MOVES",
+    RESTART: "RESTART",
+  },
+  de: {
+    SCORE: "PUNKTE",
+    SETTINGS: "OPTIONEN",
+    GRID_SIZE: "FELDGRÖSSE",
+    TILE_VARIETY: "VIELFALT",
+    SAVE_RESTART: "SPEICHERN",
+    CLOSE: "SCHLIESSEN",
+    SHUFFLE: "MISCHEN",
+    GAME_OVER: "KEINE WEITEREN ZÜGE MÖGLICH",
+    RESTART: "NEU STARTEN",
+  },
+};
+
+export type Locale = "en" | "de";

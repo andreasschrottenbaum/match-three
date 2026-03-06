@@ -12,6 +12,7 @@ export type StepperConfig = {
 
 export class Stepper extends GameObjects.Container {
   private valueText: GameObjects.Text;
+  private labelText: GameObjects.Text;
   private config: StepperConfig;
 
   constructor(scene: Scene, x: number, y: number, config: StepperConfig) {
@@ -19,7 +20,7 @@ export class Stepper extends GameObjects.Container {
     this.config = config;
 
     // 1. Label (e.g., "Grid Size")
-    const labelText = scene.add
+    this.labelText = scene.add
       .text(0, -30, config.label, {
         fontSize: "18px",
         color: COLORS.WHITE,
@@ -52,7 +53,7 @@ export class Stepper extends GameObjects.Container {
       })
       .setOrigin(0.5);
 
-    this.add([labelText, btnMinus, btnPlus, this.valueText]);
+    this.add([this.labelText, btnMinus, btnPlus, this.valueText]);
     scene.add.existing(this);
   }
 
@@ -76,5 +77,9 @@ export class Stepper extends GameObjects.Container {
   public setValue(val: number): void {
     this.config.value = val;
     this.valueText.setText(val.toString());
+  }
+
+  public setText(text: string): void {
+    this.labelText.setText(text);
   }
 }
