@@ -27,11 +27,5 @@ export class MatchThree extends Scene {
 
     // Initial trigger to position everything
     this.layoutManager.update();
-
-    this.input.keyboard?.on("keydown-L", () => {
-      I18nService.toggleLanguage();
-
-      this.events.emit("SETTINGS_CHANGED");
-    });
   }
 }
