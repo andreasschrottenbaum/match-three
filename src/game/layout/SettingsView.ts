@@ -79,8 +79,8 @@ export class SettingsView extends BaseOverlay {
    */
   private updateLocalization(): void {
     this.title.setText(I18nService.t("SETTINGS"));
-    this.sizeStepper.setText(I18nService.t("GRID_SIZE"));
-    this.varietyStepper.setText(I18nService.t("TILE_VARIETY"));
+    this.sizeStepper.setLabelText(I18nService.t("GRID_SIZE"));
+    this.varietyStepper.setLabelText(I18nService.t("TILE_VARIETY"));
     this.saveBtn.setText(I18nService.t("SAVE_RESTART"));
     this.cancelBtn.setText(I18nService.t("CLOSE"));
 
