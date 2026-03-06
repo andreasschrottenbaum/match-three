@@ -77,8 +77,8 @@ export class SettingsView extends BaseOverlay {
     this.sizeStepper = new Stepper(this.scene, 0, 0, {
       label: "GRID SIZE",
       value: this.draftSettings.grid.size,
-      min: 4,
-      max: 12,
+      min: GameConfig.grid.minSize,
+      max: GameConfig.grid.maxSize,
       onChange: (val: number) => {
         this.draftSettings.grid.size = val;
         // No global event fired here to keep it draft-only
@@ -89,8 +89,8 @@ export class SettingsView extends BaseOverlay {
     this.varietyStepper = new Stepper(this.scene, 0, 0, {
       label: "TILE VARIETY",
       value: this.draftSettings.grid.variety,
-      min: 3,
-      max: 12,
+      min: GameConfig.grid.minVariety,
+      max: GameConfig.grid.maxVariety,
       onChange: (val: number) => {
         this.draftSettings.grid.variety = val;
       },
@@ -134,9 +134,15 @@ export class SettingsView extends BaseOverlay {
    * Commits draft changes back to global GameConfig and triggers game restart.
    */
   private applySettings(): void {
+    const newSize = this.draftSettings.grid.size;
+    const newVariety = this.draftSettings.grid.variety;
+
     // Deep commit
-    GameConfig.grid.size = this.draftSettings.grid.size;
-    GameConfig.grid.variety = this.draftSettings.grid.variety;
+    GameConfig.grid.size = newSize;
+    GameConfig.grid.variety = newVariety;
+
+    localStorage.setItem("match3_size", newSize.toString());
+    localStorage.setItem("match3_variety", newVariety.toString());
 
     // Notify the game that configuration has officially changed
     this.scene.events.emit("SETTINGS_CHANGED", GameConfig);
