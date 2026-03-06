@@ -218,6 +218,9 @@ export class Content extends BaseLayoutArea {
     if (this.isAnimating) return;
     this.isAnimating = true;
 
+    // Stop all current animations to prevent "ghosting"
+    this.tiles.forEach((t) => this.scene.tweens.killTweensOf(t));
+
     this.model.shuffle();
     let completed = 0;
 
