@@ -221,11 +221,25 @@ export class Tile extends GameObjects.Container {
 
       case 5: // Thick Cross
         const k = s * 0.4; // Thickness factor
+
+        const crossPath = [
+          { x: -k + offset, y: -s + offset },
+          { x: k + offset, y: -s + offset },
+          { x: k + offset, y: -k + offset },
+          { x: s + offset, y: -k + offset },
+          { x: s + offset, y: k + offset },
+          { x: k + offset, y: k + offset },
+          { x: k + offset, y: s + offset },
+          { x: -k + offset, y: s + offset },
+          { x: -k + offset, y: k + offset },
+          { x: -s + offset, y: k + offset },
+          { x: -s + offset, y: -k + offset },
+          { x: -k + offset, y: -k + offset },
+        ];
+
         if (!isSpecular) {
-          graphics.fillRect(-s + offset, -k + offset, s * 2, k * 2);
-          graphics.fillRect(-k + offset, -s + offset, k * 2, s * 2);
-          graphics.strokeRect(-s + offset, -k + offset, s * 2, k * 2);
-          graphics.strokeRect(-k + offset, -s + offset, k * 2, s * 2);
+          graphics.fillPoints(crossPath, true);
+          graphics.strokePoints(crossPath, true);
         } else {
           // Draw glints on the extreme edges of the cross bars
           graphics.lineBetween(-k + 3, -s + 3, k - 3, -s + 3); // Top edge vertical bar
