@@ -24,4 +24,5 @@ export const GameConfig = {
     minVariety: 3,
   },
   shuffleCharges: 3, // Amount of charges for the Shuffle Button
+  maxShuffleScharges: 3,
 };

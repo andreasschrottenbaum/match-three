@@ -78,6 +78,9 @@ export class Content extends BaseLayoutArea {
     this.isAnimating = false;
     this.firstSelection = null;
 
+    GameConfig.shuffleCharges = GameConfig.maxShuffleScharges;
+    this.scene.events.emit("UPDATE_SHUFFLE_UI");
+
     this.tiles.forEach((t) => {
       this.scene.tweens.killTweensOf(t);
       t.destroy();
@@ -226,8 +229,13 @@ export class Content extends BaseLayoutArea {
    * Re-shuffles the board logic and performs a fall-in animation.
    */
   private handleShuffle(): void {
-    if (this.isAnimating) {
+    if (this.isAnimating || !GameConfig.shuffleCharges) {
       return;
+    }
+
+    if (GameConfig.shuffleCharges) {
+      GameConfig.shuffleCharges--;
+      this.scene.events.emit("UPDATE_SHUFFLE_UI");
     }
 
     this.isAnimating = true;

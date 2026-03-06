@@ -21,6 +21,7 @@ export class Button extends GameObjects.Container {
   private background: GameObjects.Graphics;
   private label: GameObjects.Text;
   private config: InternalButtonConfig;
+  private isEnabled: boolean = true;
 
   constructor(scene: Scene, x: number, y: number, config: ButtonConfig) {
     super(scene, x, y);
@@ -66,12 +67,29 @@ export class Button extends GameObjects.Container {
     this.label.setText(text);
   }
 
+  public setDisabled(disabled: boolean) {
+    this.isEnabled = !disabled;
+
+    if (disabled) {
+      this.disableInteractive();
+      this.setAlpha(0.5); // Visuelles Feedback: Ausgegraut
+
+      this.drawState(0x666666, 1);
+    } else {
+      this.setInteractive();
+      this.setAlpha(1.0);
+
+      this.drawState(getNumColor(COLORS.UI_BG_LIGHT), 1);
+    }
+  }
+
   /**
    * Set up pointer events for hover and click states
    */
   private setupEvents(): void {
     // Hover state
     this.on(Input.Events.POINTER_OVER, () => {
+      if (!this.isEnabled) return;
       this.drawState(getNumColor(COLORS.SECONDARY), 1);
     });
 

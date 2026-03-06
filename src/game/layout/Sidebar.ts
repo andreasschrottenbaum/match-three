@@ -2,6 +2,7 @@ import { Scene, Geom, GameObjects } from "phaser";
 import { BaseLayoutArea } from "./BaseLayoutArea";
 import { Button } from "../ui/Button";
 import { LAYOUT, COLORS, getNumColor } from "../config/Theme";
+import { GameConfig } from "../config/GameConfig";
 
 /**
  * Sidebar component managing game stats and control buttons.
@@ -12,6 +13,7 @@ export class Sidebar extends BaseLayoutArea {
   private scoreHeader!: GameObjects.Text;
   private scoreText!: GameObjects.Text;
   private score: number = 0;
+  private shuffleBtn: Button;
 
   constructor(scene: Scene) {
     super(scene);
@@ -22,6 +24,16 @@ export class Sidebar extends BaseLayoutArea {
     this.scene.events.on("TILES_CLEARED", (count: number) =>
       this.updateScore(count),
     );
+
+    this.scene.events.on("UPDATE_SHUFFLE_UI", () => {
+      this.shuffleBtn.setText(`SHUFFLE (${GameConfig.shuffleCharges})`);
+
+      if (!GameConfig.shuffleCharges) {
+        this.shuffleBtn.setDisabled(true);
+      } else {
+        this.shuffleBtn.setDisabled(false);
+      }
+    });
   }
 
   /**
@@ -53,8 +65,8 @@ export class Sidebar extends BaseLayoutArea {
    */
   private createButtons(): void {
     // Shuffle Button (Placeholder for next step)
-    const shuffleBtn = new Button(this.scene, 0, 0, {
-      text: "SHUFFLE",
+    this.shuffleBtn = new Button(this.scene, 0, 0, {
+      text: `SHUFFLE (${GameConfig.shuffleCharges})`,
       callback: () => this.scene.events.emit("GAME_SHUFFLE"),
     });
 
@@ -64,9 +76,9 @@ export class Sidebar extends BaseLayoutArea {
       callback: () => this.scene.events.emit("UI_OPEN_SETTINGS"),
     });
 
-    this.add(shuffleBtn);
+    this.add(this.shuffleBtn);
     this.add(settingsBtn);
-    this.buttons = [shuffleBtn, settingsBtn];
+    this.buttons = [this.shuffleBtn, settingsBtn];
   }
 
   /**
