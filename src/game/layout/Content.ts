@@ -1,4 +1,4 @@
-import { Scene, Geom, GameObjects } from "phaser";
+import { Scene, Geom, GameObjects, Math as PhaserMath } from "phaser";
 import { BaseLayoutArea } from "./BaseLayoutArea";
 import { GameConfig } from "../config/GameConfig";
 import { COLORS, getNumColor } from "../config/Theme";
@@ -10,21 +10,34 @@ import { Tile } from "../entities/Tile";
 import { BoardLogic } from "../logic/BoardLogic";
 
 /**
- * Main gameplay controller. Coordinates logical state (Model) with visual
- * representation (Tiles) and handles user interaction.
+ * Main gameplay controller.
+ * Orchestrates the synchronization between the logical GridModel and the visual Tiles.
+ * Manages game states like swapping, matching, gravity, and refills.
  */
 export class Content extends BaseLayoutArea {
+  /** Graphics layer for the board background and selection highlights */
   private gridGraphics: GameObjects.Graphics;
+  /** The logical state of the grid (data only) */
   private model: GridModel;
+  /** Handles tweening and visual transitions for tiles */
   private animator: GridAnimator;
+  /** Manages pointer interactions and converts them to grid coordinates */
   private inputHandler: GridInputHandler;
 
+  /** Stores the last used layout rectangle for resize calculations */
   private lastRect?: Geom.Rectangle;
+  /** Pre-calculated values for grid rendering based on available space */
   private gridMetrics = { offsetX: 0, offsetY: 0, cellSize: 0 };
+  /** Map of active Tile objects, keyed by "row-col" strings */
   private tiles: Map<string, Tile> = new Map();
+  /** Lock flag to prevent player interaction during animations */
   private isAnimating: boolean = false;
+  /** Stores the first tile coordinate in a potential swap pair */
   private firstSelection: GridPosition | null = null;
 
+  /**
+   * @param scene - The Phaser Scene this content area belongs to.
+   */
   constructor(scene: Scene) {
     super(scene);
 
@@ -33,7 +46,7 @@ export class Content extends BaseLayoutArea {
     this.model.generate();
     this.animator = new GridAnimator(scene);
 
-    // Layer for static UI elements like highlights and board background
+    // Add graphics layer to the container
     this.gridGraphics = scene.add.graphics();
     this.add(this.gridGraphics);
 
@@ -43,26 +56,36 @@ export class Content extends BaseLayoutArea {
       this,
       () => this.gridMetrics,
     );
+
     this.inputHandler.attach(
-      (pos) => {
-        this.firstSelection = pos;
-        this.drawGrid(this.lastRect!, pos ?? undefined);
-      },
+      (pos) => this.handleSelectionChange(pos),
       (a, b) => this.executeSwap(a, b),
     );
 
     this.prepareResources();
 
-    // Global event listeners
+    // Setup global listeners for external triggers
     this.scene.events.on("SETTINGS_CHANGED", () => this.handleReset());
     this.scene.events.on("GAME_SHUFFLE", () => this.handleShuffle());
   }
 
   /**
-   * Generates runtime assets like the pixel texture for particle effects.
+   * Visual selection state update.
+   * @param pos - The grid position that was clicked/selected.
+   */
+  private handleSelectionChange(pos: GridPosition | null): void {
+    this.firstSelection = pos;
+    if (this.lastRect) {
+      this.drawGrid(this.lastRect, pos ?? undefined);
+    }
+  }
+
+  /**
+   * Generates runtime assets (e.g., textures) needed for visual effects.
    */
   private prepareResources(): void {
     if (this.scene.textures.exists("white-pixel")) return;
+
     const graphics = this.scene.make.graphics({ x: 0, y: 0 });
     graphics
       .fillStyle(0xffffff)
@@ -72,13 +95,14 @@ export class Content extends BaseLayoutArea {
   }
 
   /**
-   * Resets the entire grid state and clears all visual tile objects.
+   * Full reset of the game board.
+   * Clears models, destroys visual objects, and resets shuffle charges.
    */
   private handleReset(): void {
     this.isAnimating = false;
     this.firstSelection = null;
 
-    GameConfig.shuffleCharges = GameConfig.maxShuffleScharges;
+    GameConfig.shuffleCharges = GameConfig.maxShuffleCharges;
     this.scene.events.emit("UPDATE_SHUFFLE_UI");
 
     this.tiles.forEach((t) => {
@@ -94,7 +118,8 @@ export class Content extends BaseLayoutArea {
   }
 
   /**
-   * Updates layout and redraws the grid when the screen size changes.
+   * Resizes the content area and redraws the grid layout.
+   * @param rect - The bounds provided by the LayoutManager.
    */
   public resize(rect: Geom.Rectangle): void {
     this.lastRect = rect;
@@ -103,25 +128,29 @@ export class Content extends BaseLayoutArea {
   }
 
   /**
-   * Orchestrates the drawing of the board background, selection highlights,
-   * and synchronizes active tile positions.
+   * Calculates metrics and renders the board backdrop and tiles.
+   * @param rect - Bounds for calculation.
+   * @param selectedTile - Currently active selection for highlight.
    */
   private drawGrid(rect: Geom.Rectangle, selectedTile?: GridPosition): void {
     this.gridGraphics.clear();
     const size = GameConfig.grid.size;
     const padding = 20;
+
+    // Calculate square board fitting inside the rectangle
     const boardSize = Math.min(rect.width - padding, rect.height - padding);
     const cellSize = boardSize / size;
     const offsetX = (rect.width - boardSize) / 2;
     const offsetY = (rect.height - boardSize) / 2;
+
     this.gridMetrics = { offsetX, offsetY, cellSize };
 
-    // Render Board Backdrop
+    // 1. Render Board Backdrop
     this.gridGraphics
       .fillStyle(getNumColor(COLORS.BLACK), 0.2)
       .fillRoundedRect(offsetX, offsetY, boardSize, boardSize, 8);
 
-    // Render Selection Frame
+    // 2. Render Selection Frame
     if (selectedTile) {
       this.gridGraphics
         .lineStyle(4, 0xffffff)
@@ -134,7 +163,7 @@ export class Content extends BaseLayoutArea {
         );
     }
 
-    // Synchronize View-Entities with the Logical Model
+    // 3. Synchronize Tile Entities
     for (let row = 0; row < size; row++) {
       for (let col = 0; col < size; col++) {
         const type = this.model.getTile(row, col);
@@ -165,7 +194,10 @@ export class Content extends BaseLayoutArea {
   }
 
   /**
-   * Processes a swap attempt between two tiles.
+   * Executes a swap animation and logic.
+   * If the swap is invalid (no match), the tiles are swapped back.
+   * @param posA - Origin position.
+   * @param posB - Target position.
    */
   private executeSwap(posA: GridPosition, posB: GridPosition): void {
     const tileA = this.tiles.get(`${posA.row}-${posA.col}`);
@@ -177,6 +209,7 @@ export class Content extends BaseLayoutArea {
 
     this.animator.swap(tileA, tileB, isValid, () => {
       if (isValid) {
+        // Swap visual tracking in the Map
         this.tiles.set(`${posA.row}-${posA.col}`, tileB);
         this.tiles.set(`${posB.row}-${posB.col}`, tileA);
         this.handleMatches();
@@ -187,8 +220,7 @@ export class Content extends BaseLayoutArea {
   }
 
   /**
-   * Identifies matches and triggers destruction sequences.
-   * Ensures visual tiles are removed from the tracking Map immediately to avoid "ghost" tiles.
+   * Finds matches in the model, destroys visual tiles, and emits score events.
    */
   private handleMatches(): void {
     const matches = this.model.findMatches();
@@ -198,7 +230,6 @@ export class Content extends BaseLayoutArea {
     }
 
     this.isAnimating = true;
-
     this.scene.events.emit("TILES_CLEARED", matches.length);
 
     matches.forEach((pos) => {
@@ -206,40 +237,28 @@ export class Content extends BaseLayoutArea {
       const tile = this.tiles.get(key);
 
       if (tile) {
-        // 1. Remove from Map immediately so no other logic (like gravity)
-        // can access this tile during its death animation.
         this.tiles.delete(key);
-
-        // 2. Visual explosion and destruction
         this.createExplosion(tile.x, tile.y, tile.fillColor);
-        this.animator.destroy(tile, () => {
-          tile.destroy();
-        });
+        this.animator.destroy(tile, () => tile.destroy());
       }
     });
 
-    // 3. Update the logical model
     this.model.clearMatches(matches);
 
-    // 4. Wait for the destruction animation to be halfway done before falling down
+    // Wait for pop animation before falling
     this.scene.time.delayedCall(200, () => this.applyGravity());
   }
 
   /**
-   * Re-shuffles the board logic and performs a fall-in animation.
+   * Shuffles the logical board and performs a "fall-in" animation for all tiles.
    */
   private handleShuffle(): void {
-    if (this.isAnimating || !GameConfig.shuffleCharges) {
-      return;
-    }
+    if (this.isAnimating || !GameConfig.shuffleCharges) return;
 
-    if (GameConfig.shuffleCharges) {
-      GameConfig.shuffleCharges--;
-      this.scene.events.emit("UPDATE_SHUFFLE_UI");
-    }
+    GameConfig.shuffleCharges--;
+    this.scene.events.emit("UPDATE_SHUFFLE_UI");
 
     this.isAnimating = true;
-
     this.tiles.forEach((t) => this.scene.tweens.killTweensOf(t));
 
     this.model.shuffle();
@@ -274,12 +293,10 @@ export class Content extends BaseLayoutArea {
           this.gridMetrics.cellSize / 2;
 
         tile.x = targetX;
-        tile.y -= 600;
+        tile.y -= 600; // Starting offset for shuffle "rain" effect
 
         this.animator.drop(tile, targetY, row * 20, () => {
-          completedCount++;
-
-          if (completedCount === tileList.length) {
+          if (++completedCount === tileList.length) {
             this.isAnimating = false;
             this.checkNextChain();
           }
@@ -289,7 +306,7 @@ export class Content extends BaseLayoutArea {
   }
 
   /**
-   * Moves existing tiles down and triggers spawning of new ones.
+   * Shifts existing tiles down according to gravity and spawns new ones.
    */
   private applyGravity(): void {
     const plan = this.model.stepGravity();
@@ -309,7 +326,8 @@ export class Content extends BaseLayoutArea {
   }
 
   /**
-   * Instantiates new tiles above the visible area and animates them dropping in.
+   * Refills the board with new tiles from the top.
+   * @param newTiles - List of grid positions to refill.
    */
   private spawnNewTiles(newTiles: { row: number; col: number }[]): void {
     this.model.refill(newTiles);
@@ -319,8 +337,6 @@ export class Content extends BaseLayoutArea {
       const { offsetX, offsetY, cellSize } = this.gridMetrics;
       const x = offsetX + pos.col * cellSize + cellSize / 2;
       const targetY = offsetY + pos.row * cellSize + cellSize / 2;
-
-      // Start position is far above the grid to create the drop effect
       const startY = offsetY - cellSize * (GameConfig.grid.size - pos.row + 1);
 
       const type = this.model.getTile(pos.row, pos.col);
@@ -336,7 +352,6 @@ export class Content extends BaseLayoutArea {
       this.add(t);
       this.tiles.set(`${pos.row}-${pos.col}`, t);
 
-      // Trigger the drop animation with a staggered delay based on row
       this.animator.drop(
         t,
         targetY,
@@ -349,7 +364,7 @@ export class Content extends BaseLayoutArea {
   }
 
   /**
-   * Recursive check for chain reactions (cascades).
+   * Checks for subsequent matches after gravity/refill (Cascading).
    */
   private checkNextChain(): void {
     if (this.model.findMatches().length > 0) {
@@ -365,10 +380,11 @@ export class Content extends BaseLayoutArea {
   }
 
   /**
-   * Creates a burst of particles at the specified location.
+   * Spawns a particle emitter for match feedback.
+   * Uses world coordinates to ensure particles aren't clipped by containers.
    */
   private createExplosion(tileX: number, tileY: number, color: number): void {
-    const wp = new Phaser.Math.Vector2();
+    const wp = new PhaserMath.Vector2();
     this.getWorldTransformMatrix().transformPoint(tileX, tileY, wp);
 
     const p = this.scene.add.particles(wp.x, wp.y, "white-pixel", {
@@ -385,12 +401,12 @@ export class Content extends BaseLayoutArea {
   }
 
   /**
-   * Helper to map tile types to colors.
+   * Returns a hexadecimal color for a specific tile type.
    */
   private getTileColor(type: number): number {
     const palette = [
       0xff595e, 0xffca3a, 0x8ac926, 0x1982c4, 0x6a4c93, 0xff924c, 0x52e3e1,
-      0xfb6f92, 0xd8f3dc, 0x666666, 0xff87ab, 0x9c6644,
+      0xfb6f92, 0xd8f3dc, 0x666666,
     ];
     return palette[type % palette.length];
   }

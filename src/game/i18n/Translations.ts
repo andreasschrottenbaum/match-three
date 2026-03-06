@@ -1,4 +1,30 @@
-export const Translations = {
+/**
+ * Available language keys for the application.
+ */
+export type Locale = "en" | "de";
+
+/**
+ * Type definition for the translation schema.
+ * Ensures that all languages implement the exact same keys.
+ */
+export type TranslationSchema = {
+  SCORE: string;
+  SETTINGS: string;
+  GRID_SIZE: string;
+  TILE_VARIETY: string;
+  SAVE_RESTART: string;
+  CLOSE: string;
+  SHUFFLE: string;
+  GAME_OVER: string;
+  RESTART: string;
+};
+
+/**
+ * Global Translation Dictionary.
+ * Contains localized strings for UI elements.
+ */
+export const Translations: Record<Locale, TranslationSchema> = {
+  /** English Localization */
   en: {
     SCORE: "SCORE",
     SETTINGS: "SETTINGS",
@@ -10,6 +36,7 @@ export const Translations = {
     GAME_OVER: "NO MORE MOVES",
     RESTART: "RESTART",
   },
+  /** German Localization */
   de: {
     SCORE: "PUNKTE",
     SETTINGS: "OPTIONEN",
@@ -22,5 +49,3 @@ export const Translations = {
     RESTART: "NEU STARTEN",
   },
 };
-
-export type Locale = "en" | "de";

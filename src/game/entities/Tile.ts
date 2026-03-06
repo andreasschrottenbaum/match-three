@@ -2,19 +2,23 @@ import { GameObjects, Scene, Display } from "phaser";
 
 /**
  * Represents a high-quality "Crystal Gem" tile with a balanced look.
- * Corrects the Hexagon glint and Triangle bevel inconsistencies.
+ * Uses procedural Graphics to render different shapes with shadows,
+ * bevels, and specular glints.
  */
 export class Tile extends GameObjects.Container {
+  /** The main graphics object for the gem body, highlights, and glints */
   private symbol: GameObjects.Graphics;
+  /** Separate graphics object for the drop shadow to allow independent layering */
   private shadow: GameObjects.Graphics;
+  /** The logical color of the tile used for gameplay and effects */
   private _color: number;
 
   /**
    * @param scene - The Phaser Scene this tile belongs to.
-   * @param x - Initial X position.
-   * @param y - Initial Y position.
-   * @param size - The bounding size of the tile cell.
-   * @param type - The tile type ID (determines the shape).
+   * @param x - Initial X position in pixels.
+   * @param y - Initial Y position in pixels.
+   * @param size - The bounding size of the grid cell.
+   * @param type - The tile type ID (determines the geometric shape).
    * @param color - The hexadecimal color value.
    */
   constructor(
@@ -28,11 +32,11 @@ export class Tile extends GameObjects.Container {
     super(scene, x, y);
     this._color = color;
 
-    // Layer 1: Outer Shadow for depth against the board
+    // Layer 1: Outer Shadow for depth against the board background
     this.shadow = scene.add.graphics();
     this.add(this.shadow);
 
-    // Layer 2: The combined Gem Body (Base, Highlight, and Specular layers)
+    // Layer 2: The combined Gem Body (Base, Highlight face, and Specular glints)
     this.symbol = scene.add.graphics();
     this.add(this.symbol);
 
@@ -41,7 +45,12 @@ export class Tile extends GameObjects.Container {
   }
 
   /**
-   * Re-renders the tile visuals (e.g., after resize or shuffle).
+   * Re-renders the tile visuals from scratch.
+   * Useful when the grid size changes or the tile is recycled.
+   *
+   * @param size - The new bounding size of the cell.
+   * @param color - The new color for the tile.
+   * @param type - The shape type index.
    */
   public updateVisuals(size: number, color: number, type: number): void {
     this._color = color;
@@ -51,36 +60,44 @@ export class Tile extends GameObjects.Container {
   }
 
   /**
-   * Orchestrates the drawing of the balanced 4-layer crystal gem effect.
+   * Orchestrates the drawing of the multi-layered crystal effect.
+   * Layers: Shadow -> Beveled Rim -> Bright Face -> Specular Glint.
+   *
+   * @param type - Shape index.
+   * @param size - Cell size.
    */
   private drawGem(type: number, size: number): void {
-    const s = size * 0.35; // Basic scale factor relative to cell size
+    const s = size * 0.35; // Scale factor relative to cell size
 
     // 1. Drop Shadow (offset and semi-transparent)
     this.renderShape(this.shadow, type, s, 0x000000, 0.25, 4, false);
 
     // 2. Base Layer (The outer rim / "cut" of the gem)
-    // Darkened slightly more for better contrast against the highlight face
+    // Darkened to provide depth for the bevel effect
     const rimColor = this.adjustColor(this._color, -30);
     this.renderShape(this.symbol, type, s, rimColor, 1, 0, false);
 
     // 3. Highlight Face (The inner, raised surface)
-    // Use modulo to cycle through colors if variety is high
     const faceColor = this.getHighlightColor(this._color);
-
-    // Scale is slightly reduced to create the bevel gap
-    // Use slightly less face shrinkage for more base visibility
+    // Scale is reduced to 86% to reveal the rim underneath
     this.renderShape(this.symbol, type, s * 0.86, faceColor, 1, 0, false);
 
     // 4. Specular Highlight (The 'Glint')
-    // A thin, bright, semi-transparent arc on the top-left edge
-    // We pass 'true' to render the special specular version of the shape
+    // A thin, bright, semi-transparent highlight on the top-left edge
     this.renderShape(this.symbol, type, s * 0.86, 0xffffff, 0.45, 0, true);
   }
 
   /**
-   * Core rendering logic for the geometric shapes.
-   * Can draw the filled shape or the specific specular glint.
+   * Core rendering logic for geometric shapes.
+   * Supports drawing filled shapes (Base/Face) or line-based highlights (Specular).
+   *
+   * @param graphics - The graphics object to draw on.
+   * @param type - Shape index.
+   * @param s - Calculated radius/half-width.
+   * @param color - Fill or line color.
+   * @param alpha - Transparency.
+   * @param offset - Positional offset (mainly for shadows).
+   * @param isSpecular - If true, only the top-left edges are stroked.
    */
   private renderShape(
     graphics: GameObjects.Graphics,
@@ -92,31 +109,29 @@ export class Tile extends GameObjects.Container {
     isSpecular: boolean,
   ): void {
     if (!isSpecular) {
-      // Default drawing style for standard filled layers
       graphics.fillStyle(color, alpha);
-      // Add a very thin black line to define the rim more sharply
+      // Sharp black hairline for definition
       graphics.lineStyle(1, 0x000000, 0.1);
 
-      // Remove stroke for shadow or inner face
+      // Disable stroke for shadows or extremely small sizes
       if (alpha !== 1 || s < 25) {
         graphics.lineStyle(0, 0);
       }
     } else {
-      // Specular Glint style: Pure color lines, high alpha
+      // Specular Glint style: Lines only
       graphics.lineStyle(3, color, alpha);
-      graphics.fillStyle(0, 0); // Ensure NO fill on glint
+      graphics.fillStyle(0, 0);
     }
 
-    // Switch case for different geometric shapes
-    switch (type % 6) {
+    const shapeType = type % 6;
+
+    switch (shapeType) {
       case 0: // Circle
         if (!isSpecular) {
           graphics.fillCircle(offset, offset, s);
           graphics.strokeCircle(offset, offset, s);
         } else {
-          // Draw a precise arc on the top-left quadrant of the circle
           graphics.beginPath();
-          // Start at 200 degrees (top-left) to 270 degrees (top)
           graphics.arc(
             0,
             0,
@@ -134,41 +149,21 @@ export class Tile extends GameObjects.Container {
           graphics.fillRect(-s + offset, -s + offset, s * 2, s * 2);
           graphics.strokeRect(-s + offset, -s + offset, s * 2, s * 2);
         } else {
-          // Draw L-shaped glint on top and left edges
-          // Start glint a bit further in for diamond effect
-          graphics.lineBetween(-s + 4, -s + 4, s - 4, -s + 4); // Top
-          graphics.lineBetween(-s + 4, -s + 4, -s + 4, s - 4); // Left
+          graphics.lineBetween(-s + 4, -s + 4, s - 4, -s + 4); // Top edge
+          graphics.lineBetween(-s + 4, -s + 4, -s + 4, s - 4); // Left edge
         }
         break;
 
       case 2: // Triangle
         if (!isSpecular) {
-          // The fill Triangle logic is fine, it's about the proportions
-          graphics.fillTriangle(
-            offset,
-            -s + offset,
-            -s + offset,
-            s + offset,
-            s + offset,
-            s + offset,
-          );
-          graphics.strokeTriangle(
-            offset,
-            -s + offset,
-            -s + offset,
-            s + offset,
-            s + offset,
-            s + offset,
-          );
+          this.drawTriangle(graphics, s, offset);
         } else {
-          // Corrected angle to match the actual left slope.
-          const offsetGlint = 4;
-          // Start glint a bit further up, and end it before the corner
+          const glintOff = 4;
           graphics.lineBetween(
             0,
-            -s + offsetGlint + 2,
-            -s + offsetGlint,
-            s - offsetGlint,
+            -s + glintOff + 2,
+            -s + glintOff,
+            s - glintOff,
           );
         }
         break;
@@ -186,7 +181,6 @@ export class Tile extends GameObjects.Container {
             offset,
           );
         } else {
-          // Precise glint on top-left slope
           graphics.lineBetween(-s + 4, 0, 0, -s * 1.2 + 4);
         }
         break;
@@ -200,56 +194,76 @@ export class Tile extends GameObjects.Container {
           }
           this.drawPoly(graphics, hex, offset);
         } else {
-          // FIX: The glint on the hexagon slopes. Removed the erroneous arc logic.
-          // Using precise lines for the two top-left edges.
-
-          // Specular Segment 1 (Top-Left horizontal)
-          const yOffset = -s * 0.866; // Standard hexagon math: cos(30deg) * s
-          const xOffsetShort = -s * 0.5; // sin(30deg) * s
+          const yOffset = -s * 0.866;
+          const xOffsetShort = -s * 0.5;
           graphics.lineBetween(
             xOffsetShort + 3,
             yOffset + 3,
             s * 0.5 - 3,
             yOffset + 3,
           );
-
-          // Specular Segment 2 (Top-Left downward slope)
           graphics.lineBetween(-s + 3, 0, xOffsetShort + 2, yOffset + 2);
         }
         break;
 
       case 5: // Thick Cross
-        const k = s * 0.4; // Thickness factor
-
-        const crossPath = [
-          { x: -k + offset, y: -s + offset },
-          { x: k + offset, y: -s + offset },
-          { x: k + offset, y: -k + offset },
-          { x: s + offset, y: -k + offset },
-          { x: s + offset, y: k + offset },
-          { x: k + offset, y: k + offset },
-          { x: k + offset, y: s + offset },
-          { x: -k + offset, y: s + offset },
-          { x: -k + offset, y: k + offset },
-          { x: -s + offset, y: k + offset },
-          { x: -s + offset, y: -k + offset },
-          { x: -k + offset, y: -k + offset },
+        const k = s * 0.4;
+        const cross = [
+          { x: -k, y: -s },
+          { x: k, y: -s },
+          { x: k, y: -k },
+          { x: s, y: -k },
+          { x: s, y: k },
+          { x: k, y: k },
+          { x: k, y: s },
+          { x: -k, y: s },
+          { x: -k, y: k },
+          { x: -s, y: k },
+          { x: -s, y: -k },
+          { x: -k, y: -k },
         ];
-
         if (!isSpecular) {
-          graphics.fillPoints(crossPath, true);
-          graphics.strokePoints(crossPath, true);
+          this.drawPoly(graphics, cross, offset);
         } else {
-          // Draw glints on the extreme edges of the cross bars
-          graphics.lineBetween(-k + 3, -s + 3, k - 3, -s + 3); // Top edge vertical bar
-          graphics.lineBetween(-s + 3, -k + 3, -k + 3, -k + 3); // Left edge horizontal bar
+          graphics.lineBetween(-k + 3, -s + 3, k - 3, -s + 3);
+          graphics.lineBetween(-s + 3, -k + 3, -k + 3, -k + 3);
         }
         break;
     }
   }
 
   /**
-   * Helper to draw filled polygons.
+   * Helper to draw a standard triangle shape.
+   */
+  private drawTriangle(
+    graphics: GameObjects.Graphics,
+    s: number,
+    offset: number,
+  ): void {
+    graphics.fillTriangle(
+      offset,
+      -s + offset,
+      -s + offset,
+      s + offset,
+      s + offset,
+      s + offset,
+    );
+    graphics.strokeTriangle(
+      offset,
+      -s + offset,
+      -s + offset,
+      s + offset,
+      s + offset,
+      s + offset,
+    );
+  }
+
+  /**
+   * Helper to draw filled and stroked polygons.
+   *
+   * @param graphics - The graphics object.
+   * @param points - Array of coordinate objects.
+   * @param offset - Positional offset.
    */
   private drawPoly(
     graphics: GameObjects.Graphics,
@@ -265,7 +279,10 @@ export class Tile extends GameObjects.Container {
   }
 
   /**
-   * Color logic for the raised gem face (high saturation, brightened).
+   * Calculates a brighter version of the base color for the inner gem face.
+   *
+   * @param color - Base hexadecimal color.
+   * @returns Brightened color value.
    */
   private getHighlightColor(color: number): number {
     const col = Display.Color.IntegerToColor(color);
@@ -277,7 +294,11 @@ export class Tile extends GameObjects.Container {
   }
 
   /**
-   * Helper to adjust color brightness.
+   * Adjusts color brightness by a specific amount.
+   *
+   * @param color - Base color.
+   * @param amount - Positive to brighten, negative to darken.
+   * @returns Adjusted color value.
    */
   private adjustColor(color: number, amount: number): number {
     const col = Display.Color.IntegerToColor(color);
@@ -288,7 +309,8 @@ export class Tile extends GameObjects.Container {
   }
 
   /**
-   * Getter for the logical color, needed for particle effects.
+   * Returns the logical color of the tile.
+   * Useful for matching colors with particle emitters during matches.
    */
   public get fillColor(): number {
     return this._color;

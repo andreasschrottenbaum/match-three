@@ -6,19 +6,26 @@ import type {
   EmptySlot,
 } from "../types";
 
+/**
+ * Pure logic class for Match-3 grid operations.
+ * Handles match detection, score calculation, gravity planning, and grid generation.
+ * This class is independent of the DOM and Phaser rendering.
+ */
 class BoardLogic {
   /**
    * Scans the entire grid for matches of 3 or more identical tiles.
    * Checks both horizontal and vertical directions.
+   *
    * @param grid - A 2D array of TileIDs representing the current board state.
    * @returns An array of unique GridPositions that are part of a match.
    */
   static getAllMatches(grid: TileID[][]): GridPosition[] {
     const matches: GridPosition[] = [];
     const rows = grid.length;
+    if (rows === 0) return [];
     const cols = grid[0].length;
 
-    // Horizontal check
+    // Horizontal check: scan each row for sequences
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols - 2; col++) {
         const type = grid[row][col];
@@ -36,7 +43,7 @@ class BoardLogic {
       }
     }
 
-    // Vertical check
+    // Vertical check: scan each column for sequences
     for (let col = 0; col < cols; col++) {
       for (let row = 0; row < rows - 2; row++) {
         const type = grid[row][col];
@@ -54,7 +61,7 @@ class BoardLogic {
       }
     }
 
-    // Filter duplicates (e.g., tiles that are part of both a horizontal and vertical match)
+    // Filter duplicates: tiles at intersections shouldn't be counted twice
     return matches.filter(
       (pos, index, self) =>
         index === self.findIndex((p) => p.row === pos.row && p.col === pos.col),
@@ -63,15 +70,15 @@ class BoardLogic {
 
   /**
    * Calculates the score based on the number of matched tiles and a multiplier.
+   *
    * @param matches - Array of matched grid positions.
    * @param multiplier - Current combo multiplier.
    * @returns Total points earned.
    */
   static calculateScore(matches: GridPosition[], multiplier: number): number {
     const basePointsPerTile = 10;
-    const bonusPerExtraTile = 5; // Bonus for matches > 3
+    const bonusPerExtraTile = 5; // Bonus for chains longer than 3
 
-    // Basic points: 10 per tile, plus extra for longer chains
     const baseScore = matches.length * basePointsPerTile;
     const lengthBonus =
       matches.length > 3 ? (matches.length - 3) * bonusPerExtraTile : 0;
@@ -81,25 +88,27 @@ class BoardLogic {
 
   /**
    * Analyzes the grid to determine how tiles should fall and where new tiles are needed.
-   * This is calculated column by column from bottom to top.
-   * @param grid - The current grid state (including empty slots marked as -1).
-   * @returns A plan containing movement instructions and spawn locations for new tiles.
+   * Calculated column by column from bottom to top to identify "holes".
+   *
+   * @param grid - The current grid state (empty slots marked as -1).
+   * @returns A plan containing movement instructions and spawn locations.
    */
   static getGravityPlan(grid: TileID[][]): GravityResult {
     const moves: GravityMove[] = [];
     const newTiles: EmptySlot[] = [];
     const rows = grid.length;
+    if (rows === 0) return { moves: [], newTiles: [] };
     const cols = grid[0].length;
 
     for (let col = 0; col < cols; col++) {
       let emptySpaces = 0;
 
-      // Scan from bottom to top
+      // Scan column from bottom to top to find empty slots
       for (let row = rows - 1; row >= 0; row--) {
         if (grid[row][col] === -1) {
           emptySpaces++;
         } else if (emptySpaces > 0) {
-          // This tile needs to fall down by the number of empty spaces found below it
+          // Current tile "falls" into the accumulated empty space below it
           moves.push({
             col,
             fromRow: row,
@@ -108,8 +117,7 @@ class BoardLogic {
         }
       }
 
-      // After scanning all rows in the column, the number of emptySpaces
-      // tells us how many new tiles must spawn at the top.
+      // Populate top of the column with new tiles to replace the fell/matched ones
       for (let i = 0; i < emptySpaces; i++) {
         newTiles.push({
           row: i,
@@ -122,16 +130,19 @@ class BoardLogic {
   }
 
   /**
-   * Checks if there is at least one possible swap that results in a match.
-   * If this returns false, the game is usually over or requires a shuffle.
+   * Checks for potential matches by simulating all possible adjacent swaps.
+   *
    * @param grid - The current grid state.
-   * @returns True if a valid move exists, false otherwise.
+   * @returns True if at least one valid move exists.
    */
   static hasValidMoves(grid: TileID[][]): boolean {
     const rows = grid.length;
+    if (rows === 0) return false;
     const cols = grid[0].length;
 
-    // Helper to check if a specific cell would be part of a match
+    /**
+     * Internal helper to check if a specific cell forms a match with its neighbors.
+     */
     const wouldMatch = (
       tempGrid: TileID[][],
       row: number,
@@ -140,63 +151,51 @@ class BoardLogic {
       const type = tempGrid[row][col];
       if (type === -1) return false;
 
-      // Horizontal check around the tile
-      let horizontalCount = 1;
-      // Check right
+      // Local Horizontal check
+      let hCount = 1;
       for (let i = col + 1; i < cols && tempGrid[row][i] === type; i++)
-        horizontalCount++;
-      // Check left
-      for (let i = col - 1; i >= 0 && tempGrid[row][i] === type; i--)
-        horizontalCount++;
-      if (horizontalCount >= 3) return true;
+        hCount++;
+      for (let i = col - 1; i >= 0 && tempGrid[row][i] === type; i--) hCount++;
+      if (hCount >= 3) return true;
 
-      // Vertical check around the tile
-      let verticalCount = 1;
-      // Check down
+      // Local Vertical check
+      let vCount = 1;
       for (let i = row + 1; i < rows && tempGrid[i][col] === type; i++)
-        verticalCount++;
-      // Check up
-      for (let i = row - 1; i >= 0 && tempGrid[i][col] === type; i--)
-        verticalCount++;
-      if (verticalCount >= 3) return true;
-
-      return false;
+        vCount++;
+      for (let i = row - 1; i >= 0 && tempGrid[i][col] === type; i--) vCount++;
+      return vCount >= 3;
     };
 
-    // Try every possible horizontal swap
+    // Simulate Horizontal Swaps
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols - 1; col++) {
-        // Swap
         [grid[row][col], grid[row][col + 1]] = [
           grid[row][col + 1],
           grid[row][col],
         ];
         const found =
           wouldMatch(grid, row, col) || wouldMatch(grid, row, col + 1);
-        // Swap back
         [grid[row][col], grid[row][col + 1]] = [
           grid[row][col + 1],
           grid[row][col],
-        ];
+        ]; // Swap back
         if (found) return true;
       }
     }
 
-    // Try every possible vertical swap
+    // Simulate Vertical Swaps
     for (let row = 0; row < rows - 1; row++) {
       for (let col = 0; col < cols; col++) {
-        // Swap
         [grid[row][col], grid[row + 1][col]] = [
           grid[row + 1][col],
           grid[row][col],
         ];
         const found =
           wouldMatch(grid, row, col) || wouldMatch(grid, row + 1, col);
-        // Swap back
         [grid[row][col], grid[row + 1][col]] = [
           grid[row + 1][col],
           grid[row][col],
-        ];
+        ]; // Swap back
         if (found) return true;
       }
     }
@@ -205,12 +204,13 @@ class BoardLogic {
   }
 
   /**
-   * Creates a new grid filled with random tiles.
-   * @param rows - Number of rows.
-   * @param cols - Number of columns.
-   * @param typeCount - How many different tile types exist.
-   * @param randomFn - A function that returns a float between 0 and 1.
-   * @returns A fully initialized grid of TileIDs.
+   * Generates a raw grid filled with random tile IDs.
+   *
+   * @param rows - Row count.
+   * @param cols - Column count.
+   * @param typeCount - Number of unique tile types available.
+   * @param randomFn - Optional custom random generator (useful for seeded tests).
+   * @returns A 2D array of TileIDs.
    */
   static createRandomGrid(
     rows: number,
@@ -229,22 +229,23 @@ class BoardLogic {
   }
 
   /**
-   * Iteratively replaces tiles that are part of a match until the grid is stable.
-   * Used during initial board generation to prevent auto-matches.
+   * Modifies the grid in-place to replace any tiles that form automatic matches.
+   * Typically used during board initialization to ensure no matches exist at start.
+   *
    * @param grid - The grid to stabilize.
    * @param typeCount - Number of available tile types.
-   * @param randomFn - Random number generator function.
    */
   static resolveInitialMatchesInGrid(
     grid: TileID[][],
     typeCount: number,
   ): void {
     const rows = grid.length;
+    if (rows === 0) return;
     const cols = grid[0].length;
 
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
-        // Prüfe ob dieses Tile ein Match mit seinen linken oder oberen Nachbarn bildet
+        // Change the tile if it matches neighbors to the left or top
         while (
           (col > 1 &&
             grid[row][col] === grid[row][col - 1] &&
@@ -260,11 +261,13 @@ class BoardLogic {
   }
 
   /**
-   * Shuffles the current grid until at least one valid move is available.
-   * Ensures the player never gets stuck after a shuffle.
-   * @param grid - The current grid state.
+   * Shuffles the grid until a state with at least one valid move is reached.
+   * Uses the Fisher-Yates algorithm for the shuffle.
+   *
+   * @param grid - The grid state to shuffle.
+   * @param typeCount - Available tile types for re-resolving matches.
    * @param randomFn - Random number generator.
-   * @returns The shuffled grid.
+   * @returns The modified grid.
    */
   static shuffleGrid(
     grid: TileID[][],
@@ -272,40 +275,39 @@ class BoardLogic {
     randomFn: () => number = Math.random,
   ): TileID[][] {
     const rows = grid.length;
+    if (rows === 0) return grid;
     const cols = grid[0].length;
 
     let attempts = 0;
-    const maxAttempts = 100; // Sicherheitsschranke
+    const maxAttempts = 100; // Safety cap to prevent infinite loops
     let isValid = false;
 
     while (!isValid && attempts < maxAttempts) {
       attempts++;
 
-      // 1. Flachklopfen und Shufflen
+      // 1. Flatten the 2D grid for Fisher-Yates shuffle
       const flatGrid = grid.flat();
       for (let i = flatGrid.length - 1; i > 0; i--) {
         const j = Math.floor(randomFn() * (i + 1));
         [flatGrid[i], flatGrid[j]] = [flatGrid[j], flatGrid[i]];
       }
 
-      // 2. Zurück in 2D
+      // 2. Reconstruct the 2D structure
       for (let i = 0; i < rows; i++) {
         grid[i] = flatGrid.slice(i * cols, (i + 1) * cols);
       }
 
-      // 3. Matches entfernen (Die Methode hast du ja schon optimiert)
+      // 3. Remove any unintentional matches created by the shuffle
       this.resolveInitialMatchesInGrid(grid, typeCount);
 
-      // 4. Prüfen, ob das Board spielbar ist
+      // 4. Validate that the board is playable
       if (this.hasValidMoves(grid)) {
         isValid = true;
       }
     }
 
     if (attempts >= maxAttempts) {
-      console.warn(
-        "Shuffle: No valid moves found after 100 attempts. Using last state.",
-      );
+      console.warn("Shuffle: Failed to find valid state within attempt limit.");
     }
 
     return grid;
