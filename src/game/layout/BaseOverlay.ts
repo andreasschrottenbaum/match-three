@@ -8,6 +8,7 @@ import { BaseLayoutArea } from "./BaseLayoutArea";
 export abstract class BaseOverlay extends BaseLayoutArea {
   protected background: GameObjects.Graphics;
   protected isShown: boolean = false;
+  private inputBlocker: GameObjects.Zone;
 
   constructor(scene: Scene) {
     super(scene);
@@ -15,6 +16,25 @@ export abstract class BaseOverlay extends BaseLayoutArea {
     // 1. Full-screen background dimmer
     this.background = scene.add.graphics();
     this.add(this.background);
+
+    this.inputBlocker = scene.add.zone(0, 0, 1, 1).setOrigin(0);
+    this.inputBlocker.setInteractive();
+
+    this.inputBlocker.on(
+      "pointerdown",
+      (
+        _pointer: Phaser.Input.Pointer,
+        _localX: number,
+        _localY: number,
+        event: Phaser.Types.Input.EventData,
+      ) => {
+        event.stopPropagation();
+      },
+    );
+
+    this.add(this.inputBlocker);
+    this.sendToBack(this.inputBlocker);
+    this.sendToBack(this.background);
 
     // 2. Hide by default
     this.setVisible(false);
@@ -34,6 +54,9 @@ export abstract class BaseOverlay extends BaseLayoutArea {
     // Draw background and make interactive to block underlying input
     this.drawDimmer(rect);
     this.setInteractive(rect, Geom.Rectangle.Contains);
+
+    this.inputBlocker.setSize(rect.width, rect.height);
+    this.inputBlocker.setPosition(0, 0);
 
     this.scene.tweens.add({
       targets: this,

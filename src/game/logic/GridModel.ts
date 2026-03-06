@@ -28,18 +28,9 @@ export class GridModel {
   public generate(): void {
     const variety = GameConfig.grid.variety;
 
-    // 1. Create random board
     this.grid = BoardLogic.createRandomGrid(this.rows, this.cols, variety);
 
-    // 2. Remove initial matches
-    BoardLogic.resolveInitialMatchesInGrid(this.grid, variety);
-
-    // 3. Ensure a move is actually possible
-    let attempts = 0;
-    while (!BoardLogic.hasValidMoves(this.grid) && attempts < 10) {
-      this.grid = BoardLogic.shuffleGrid(this.grid);
-      attempts++;
-    }
+    this.grid = BoardLogic.shuffleGrid(this.grid, variety);
   }
 
   /**
@@ -47,13 +38,7 @@ export class GridModel {
    * This only changes the IDs in the 2D array.
    */
   public shuffle(): void {
-    let attempts = 0;
-    this.grid = BoardLogic.shuffleGrid(this.grid);
-
-    while (this.findMatches().length > 0 && attempts < 100) {
-      this.grid = BoardLogic.shuffleGrid(this.grid);
-      attempts++;
-    }
+    this.grid = BoardLogic.shuffleGrid(this.grid, GameConfig.grid.variety);
   }
 
   /**

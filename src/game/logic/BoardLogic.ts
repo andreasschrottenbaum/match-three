@@ -238,17 +238,24 @@ class BoardLogic {
   static resolveInitialMatchesInGrid(
     grid: TileID[][],
     typeCount: number,
-    randomFn: () => number = Math.random,
   ): void {
-    let matches = this.getAllMatches(grid);
-    let safetyNet = 0;
+    const rows = grid.length;
+    const cols = grid[0].length;
 
-    while (matches.length > 0 && safetyNet < 100) {
-      safetyNet++;
-      matches.forEach((pos) => {
-        grid[pos.row][pos.col] = Math.floor(randomFn() * typeCount);
-      });
-      matches = this.getAllMatches(grid);
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        // Prüfe ob dieses Tile ein Match mit seinen linken oder oberen Nachbarn bildet
+        while (
+          (col > 1 &&
+            grid[row][col] === grid[row][col - 1] &&
+            grid[row][col] === grid[row][col - 2]) ||
+          (row > 1 &&
+            grid[row][col] === grid[row - 1][col] &&
+            grid[row][col] === grid[row - 2][col])
+        ) {
+          grid[row][col] = Math.floor(Math.random() * typeCount);
+        }
+      }
     }
   }
 
@@ -261,26 +268,27 @@ class BoardLogic {
    */
   static shuffleGrid(
     grid: TileID[][],
+    typeCount: number,
     randomFn: () => number = Math.random,
   ): TileID[][] {
     const rows = grid.length;
     const cols = grid[0].length;
     const flatGrid = grid.flat();
-    let attempts = 0;
 
-    do {
-      // Fisher-Yates Shuffle
-      for (let i = flatGrid.length - 1; i > 0; i--) {
-        const j = Math.floor(randomFn() * (i + 1));
-        [flatGrid[i], flatGrid[j]] = [flatGrid[j], flatGrid[i]];
-      }
+    for (let i = flatGrid.length - 1; i > 0; i--) {
+      const j = Math.floor(randomFn() * (i + 1));
+      [flatGrid[i], flatGrid[j]] = [flatGrid[j], flatGrid[i]];
+    }
 
-      // Convert back to 2D array
-      for (let i = 0; i < rows; i++) {
-        grid[i] = flatGrid.slice(i * cols, (i + 1) * cols);
-      }
-      attempts++;
-    } while (!this.hasValidMoves(grid) && attempts < 100);
+    for (let i = 0; i < rows; i++) {
+      grid[i] = flatGrid.slice(i * cols, (i + 1) * cols);
+    }
+
+    this.resolveInitialMatchesInGrid(grid, typeCount);
+
+    if (!this.hasValidMoves(grid)) {
+      return this.shuffleGrid(grid, typeCount, randomFn);
+    }
 
     return grid;
   }

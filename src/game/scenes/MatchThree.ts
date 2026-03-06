@@ -5,6 +5,7 @@ import { Sidebar } from "../layout/Sidebar";
 import { Content } from "../layout/Content";
 import { Footer } from "../layout/Footer";
 import { SettingsView } from "../layout/SettingsView";
+import { GameOverOverlay } from "../layout/GameOverOverlay";
 
 export class MatchThree extends Scene {
   private layoutManager: LayoutManager;
@@ -19,6 +20,7 @@ export class MatchThree extends Scene {
     this.layoutManager.registerArea("content", new Content(this));
     this.layoutManager.registerArea("footer", new Footer(this));
     this.layoutManager.registerArea("settings", new SettingsView(this));
+    this.layoutManager.registerArea("gameOver", new GameOverOverlay(this));
 
     // Initial trigger to position everything
     this.layoutManager.update();

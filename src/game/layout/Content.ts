@@ -7,6 +7,7 @@ import { GridPosition } from "../types";
 import { GridInputHandler } from "../logic/GridInputHandler";
 import { GridAnimator } from "../logic/GridAnimator";
 import { Tile } from "../entities/Tile";
+import { BoardLogic } from "../logic/BoardLogic";
 
 /**
  * Main gameplay controller. Coordinates logical state (Model) with visual
@@ -74,10 +75,18 @@ export class Content extends BaseLayoutArea {
    * Resets the entire grid state and clears all visual tile objects.
    */
   private handleReset(): void {
-    this.tiles.forEach((t) => t.destroy());
+    this.isAnimating = false;
+    this.firstSelection = null;
+
+    this.tiles.forEach((t) => {
+      this.scene.tweens.killTweensOf(t);
+      t.destroy();
+    });
     this.tiles.clear();
+
     this.model = new GridModel(GameConfig.grid.size, GameConfig.grid.size);
     this.model.generate();
+
     if (this.lastRect) this.resize(this.lastRect);
   }
 
@@ -340,6 +349,10 @@ export class Content extends BaseLayoutArea {
     } else {
       this.isAnimating = false;
       this.firstSelection = null;
+
+      if (!BoardLogic.hasValidMoves(this.model.getRawGrid())) {
+        this.scene.events.emit("GAME_OVER");
+      }
     }
   }
 

@@ -41,6 +41,7 @@ export class LayoutManager {
       content: new Geom.Rectangle(),
       footer: new Geom.Rectangle(),
       settings: fullRect,
+      gameOver: fullRect,
     };
 
     if (isLandscape) {
