@@ -34,7 +34,7 @@ export const getNumColor = (hex: string): number => {
  */
 export const LAYOUT = {
   /** Height of the top area in landscape mode */
-  HEADER_HEIGHT: 160,
+  HEADER_MAX_HEIGHT: 160,
   /** Height of the bottom area in landscape mode */
   FOOTER_HEIGHT: 60,
   /** Minimum width for the sidebar in landscape mode */

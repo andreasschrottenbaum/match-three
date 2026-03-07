@@ -5,8 +5,7 @@ import { LAYOUT } from "../config/Theme";
 
 /**
  * Orchestrates the positioning and sizing of all UI components.
- * Listens to the Phaser Scale Manager to trigger responsive layout updates
- * for both Landscape and Portrait orientations.
+ * Dynamically calculates area bounds based on viewport orientation and constraints.
  */
 export class LayoutManager {
   /** The Phaser Scene context for accessing the Scale Manager */
@@ -15,7 +14,7 @@ export class LayoutManager {
   private areas: Map<AreaName, BaseLayoutArea> = new Map();
 
   /**
-   * @param scene - The Phaser Scene instance.
+   * @param scene - The active Phaser Scene.
    */
   constructor(scene: Scene) {
     this.scene = scene;
@@ -43,16 +42,20 @@ export class LayoutManager {
   }
 
   /**
-   * Main orchestration logic for responsive positioning.
-   * Calculates bounds for all areas and triggers their internal resize methods.
+   * Orchestrates the responsive layout update.
+   * Calculates a dynamic header height before delegating to orientation-specific methods.
    */
   public update(): void {
     const { width, height } = this.scene.scale;
     const isLandscape = width > height;
     const fullRect = new Geom.Rectangle(0, 0, width, height);
 
-    // Initialize bounds object with empty rectangles
-    // Modals (settings/gameOver) default to full screen dimensions
+    // Calculate dynamic header height: 12% of screen height, but capped at MAX constant
+    const dynamicHeaderHeight = Math.min(
+      height * 0.12,
+      LAYOUT.HEADER_MAX_HEIGHT,
+    );
+
     const bounds: Bounds = {
       header: new Geom.Rectangle(),
       sidebar: new Geom.Rectangle(),
@@ -64,9 +67,9 @@ export class LayoutManager {
 
     // Calculate specific dimensions based on orientation
     if (isLandscape) {
-      this.calculateLandscape(width, height, bounds);
+      this.calculateLandscape(width, height, dynamicHeaderHeight, bounds);
     } else {
-      this.calculatePortrait(width, height, bounds);
+      this.calculatePortrait(width, height, dynamicHeaderHeight, bounds);
     }
 
     // Apply calculated bounds to all registered components
@@ -86,27 +89,27 @@ export class LayoutManager {
    *
    * @param width - Current canvas width.
    * @param height - Current canvas height.
+   * @param headerHeight - Current header height.
    * @param bounds - The bounds object to populate.
    */
   private calculateLandscape(
     width: number,
     height: number,
+    headerHeight: number,
     bounds: Bounds,
   ): void {
     const sidebarWidth = Math.max(LAYOUT.SIDEBAR_MIN_WIDTH, width * 0.2);
-    const contentHeight = height - LAYOUT.HEADER_HEIGHT - LAYOUT.FOOTER_HEIGHT;
+    const footerHeight = LAYOUT.FOOTER_HEIGHT;
+    const contentHeight = height - headerHeight - footerHeight;
 
-    bounds.header.setTo(0, 0, width, LAYOUT.HEADER_HEIGHT);
-    bounds.footer.setTo(
-      0,
-      height - LAYOUT.FOOTER_HEIGHT,
-      width,
-      LAYOUT.FOOTER_HEIGHT,
-    );
-    bounds.sidebar.setTo(0, LAYOUT.HEADER_HEIGHT, sidebarWidth, contentHeight);
+    bounds.header.setTo(0, 0, width, headerHeight);
+    bounds.footer.setTo(0, height - footerHeight, width, footerHeight);
+
+    bounds.sidebar.setTo(0, headerHeight, sidebarWidth, contentHeight);
+
     bounds.content.setTo(
       sidebarWidth,
-      LAYOUT.HEADER_HEIGHT,
+      headerHeight,
       width - sidebarWidth,
       contentHeight,
     );
@@ -117,30 +120,25 @@ export class LayoutManager {
    *
    * @param width - Current canvas width.
    * @param height - Current canvas height.
+   * @param headerHeight - Current header height.
    * @param bounds - The bounds object to populate.
    */
   private calculatePortrait(
     width: number,
     height: number,
+    headerHeight: number,
     bounds: Bounds,
   ): void {
     const sidebarHeight = LAYOUT.SIDEBAR_PORTRAIT_HEIGHT;
-    const mainHeight =
-      height - LAYOUT.HEADER_HEIGHT - sidebarHeight - LAYOUT.FOOTER_HEIGHT;
+    const footerHeight = LAYOUT.FOOTER_HEIGHT;
+    const mainHeight = height - headerHeight - sidebarHeight - footerHeight;
 
-    bounds.header.setTo(0, 0, width, LAYOUT.HEADER_HEIGHT);
-    bounds.sidebar.setTo(0, LAYOUT.HEADER_HEIGHT, width, sidebarHeight);
-    bounds.content.setTo(
-      0,
-      LAYOUT.HEADER_HEIGHT + sidebarHeight,
-      width,
-      mainHeight,
-    );
-    bounds.footer.setTo(
-      0,
-      height - LAYOUT.FOOTER_HEIGHT,
-      width,
-      LAYOUT.FOOTER_HEIGHT,
-    );
+    bounds.header.setTo(0, 0, width, headerHeight);
+
+    bounds.sidebar.setTo(0, headerHeight, width, sidebarHeight);
+
+    bounds.content.setTo(0, headerHeight + sidebarHeight, width, mainHeight);
+
+    bounds.footer.setTo(0, height - footerHeight, width, footerHeight);
   }
 }

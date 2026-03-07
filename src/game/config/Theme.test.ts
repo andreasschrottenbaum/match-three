@@ -44,7 +44,7 @@ describe("Theme Utilities", () => {
 
     it("should have positive numeric values for layout constraints", () => {
       // Ensure layout constants are logical
-      expect(LAYOUT.HEADER_HEIGHT).toBeGreaterThan(0);
+      expect(LAYOUT.HEADER_MAX_HEIGHT).toBeGreaterThan(0);
       expect(LAYOUT.PADDING).toBeGreaterThanOrEqual(0);
       expect(LAYOUT.SIDEBAR_MIN_WIDTH).toBeGreaterThan(0);
     });
