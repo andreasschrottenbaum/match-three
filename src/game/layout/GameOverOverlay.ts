@@ -4,10 +4,12 @@ import { Button } from "../ui/Button";
 import { I18nService } from "../i18n/I18nService";
 import { GameText } from "../ui/GameText";
 import { COLORS, getNumColor } from "../config/Theme";
+import { HighscoreService } from "../logic/HighscoreService";
+import { GameConfig } from "../config/GameConfig";
 
 /**
  * Overlay displayed when the game ends (no more moves).
- * Displays the final score and provides a restart option.
+ * Displays the final score, highscore per configuration, and provides a restart option.
  */
 export class GameOverOverlay extends BaseOverlay {
   /** Background panel for the game over elements */
@@ -16,6 +18,8 @@ export class GameOverOverlay extends BaseOverlay {
   private titleText: GameText;
   /** Text displaying the accumulated player score */
   private scoreText: GameText;
+  /** Text displaying the best score for the current grid/variety combo */
+  private highscoreText: GameText;
   /** Button to trigger a game reset */
   private retryButton: Button;
   /** Internal score tracker for the current session */
@@ -31,7 +35,6 @@ export class GameOverOverlay extends BaseOverlay {
     this.panel = this.scene.add.graphics();
 
     // 1. Initialize text elements using GameText for responsiveness
-    // The title will get a larger font factor for visual hierarchy
     this.titleText = new GameText(scene, I18nService.t("GAME_OVER"), {
       fontSizeFactor: 0.05,
     }).setOrigin(0.5);
@@ -40,6 +43,11 @@ export class GameOverOverlay extends BaseOverlay {
       scene,
       `${I18nService.t("SCORE")}: 0`,
     ).setOrigin(0.5);
+
+    this.highscoreText = new GameText(scene, "", {
+      fontSizeFactor: 0.02,
+      color: COLORS.SECONDARY,
+    }).setOrigin(0.5);
 
     // 2. Initialize the Restart button with a callback to the game reset event
     this.retryButton = new Button(this.scene, 0, 0, {
@@ -51,7 +59,13 @@ export class GameOverOverlay extends BaseOverlay {
       },
     });
 
-    this.add([this.panel, this.titleText, this.scoreText, this.retryButton]);
+    this.add([
+      this.panel,
+      this.titleText,
+      this.scoreText,
+      this.highscoreText,
+      this.retryButton,
+    ]);
 
     // 3. Register Event Listeners
     this.setupEventListeners();
@@ -74,9 +88,30 @@ export class GameOverOverlay extends BaseOverlay {
       this.retryButton.setText(I18nService.t("RESTART"));
     };
 
-    // Logic to trigger the overlay visibility
+    // Logic to trigger the overlay visibility and highscore processing
     const openHandler = () => {
+      const gridSize = GameConfig.grid.size;
+      const variety = GameConfig.grid.variety;
+
+      // Check and save highscore
+      const isNewRecord = HighscoreService.saveScore(
+        gridSize,
+        variety,
+        this.finalScore,
+      );
+      const currentHigh = HighscoreService.getHighscore(gridSize, variety);
+
+      // Update UI texts
       this.updateScore(this.finalScore);
+
+      if (isNewRecord) {
+        this.highscoreText.setText(`${I18nService.t("NEW_RECORD")}!`);
+        this.highscoreText.setColor("#FFD700"); // Golden color for records
+      } else {
+        this.highscoreText.setText(`${I18nService.t("BEST")}: ${currentHigh}`);
+        this.highscoreText.setColor(COLORS.SECONDARY);
+      }
+
       // Calculate full screen bounds for the background dimmer
       const fullRect = new Geom.Rectangle(
         0,
@@ -116,8 +151,7 @@ export class GameOverOverlay extends BaseOverlay {
     // Update the full-screen background dimmer from the base class
     this.drawDimmer(rect);
 
-    // 1. Calculate Panel Dimensions (consistent with SettingsView)
-    // Set limits for desktop to prevent it from getting too large.
+    // 1. Calculate Panel Dimensions
     const panelWidth = Math.min(rect.width * 0.85, 450);
     const panelHeight = Math.min(rect.height * 0.5, 400);
     const panelX = (rect.width - panelWidth) / 2;
@@ -131,21 +165,22 @@ export class GameOverOverlay extends BaseOverlay {
     this.panel.strokeRoundedRect(panelX, panelY, panelWidth, panelHeight, 20);
 
     const cx = rect.width / 2;
-
-    // 3. Define Constraints for Text Width (e.g., 90% of panel width)
     const textMaxWidth = panelWidth * 0.9;
 
-    // 4. Position and resize GameText elements with constraints
-    this.titleText.setMaxWidth(textMaxWidth); // APPLY CONSTRAINT HERE
-    this.titleText.setPosition(cx, panelY + panelHeight * 0.25);
-    // Inform the text object to recalculate scaling
+    // 3. Position and resize GameText elements with constraints
+    this.titleText.setMaxWidth(textMaxWidth);
+    this.titleText.setPosition(cx, panelY + panelHeight * 0.2);
     this.titleText.resize();
 
-    this.scoreText.setMaxWidth(textMaxWidth); // APPLY CONSTRAINT HERE
-    this.scoreText.setPosition(cx, panelY + panelHeight * 0.5);
+    this.scoreText.setMaxWidth(textMaxWidth);
+    this.scoreText.setPosition(cx, panelY + panelHeight * 0.45);
     this.scoreText.resize();
 
-    // 5. Position and resize the Button component
+    this.highscoreText.setMaxWidth(textMaxWidth);
+    this.highscoreText.setPosition(cx, panelY + panelHeight * 0.6);
+    this.highscoreText.resize();
+
+    // 4. Position and resize the Button component
     this.retryButton.setPosition(cx, panelY + panelHeight - 60);
     this.retryButton.resize(panelWidth * 0.6, 60);
 

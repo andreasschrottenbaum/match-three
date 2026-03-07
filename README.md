@@ -84,7 +84,7 @@ This decoupling allows for lightning-fast unit testing without the overhead of a
 
 ## 📈 Roadmap
 
-- [ ] Add LocalStorage for Highscores
+- [x] Add LocalStorage for Highscores
 - [x] Implement Particle Effects for matches
 - [ ] Re-Implement Combo Multiplier
 - [ ] Add sound effects and ambient music

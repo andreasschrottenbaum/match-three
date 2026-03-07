@@ -17,6 +17,8 @@ export type TranslationSchema = {
   SHUFFLE: string;
   GAME_OVER: string;
   RESTART: string;
+  BEST: string;
+  NEW_RECORD: string;
 };
 
 /**
@@ -35,6 +37,8 @@ export const Translations: Record<Locale, TranslationSchema> = {
     SHUFFLE: "SHUFFLE",
     GAME_OVER: "NO MORE MOVES",
     RESTART: "RESTART",
+    BEST: "BEST SCORE",
+    NEW_RECORD: "NEW RECORD",
   },
   /** German Localization */
   de: {
@@ -47,5 +51,7 @@ export const Translations: Record<Locale, TranslationSchema> = {
     SHUFFLE: "MISCHEN",
     GAME_OVER: "KEINE WEITEREN ZÜGE MÖGLICH",
     RESTART: "NEU STARTEN",
+    BEST: "BESTLEISTUNG",
+    NEW_RECORD: "NEUER REKORD",
   },
 };
