@@ -17,7 +17,7 @@
     "dev": "bunx --bun vite --config vite/config.dev.mts",
     "build": "bunx --bun vite build --config vite/config.prod.mts",
     "dev-nolog": "bunx --bun vite --config vite/config.dev.mts",
-    "doc": "typedoc",
+    "docs": "typedoc",
     "build-nolog": "bunx --bun vite build --config vite/config.prod.mts",
     "test": "vitest",
     "test:run": "vitest run"
