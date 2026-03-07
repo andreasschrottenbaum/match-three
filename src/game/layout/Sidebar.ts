@@ -46,9 +46,7 @@ export class Sidebar extends BaseLayoutArea {
 
     // Refresh shuffle button text and state (enabled/disabled)
     this.scene.events.on("UPDATE_SHUFFLE_UI", () => {
-      this.shuffleBtn.setText(
-        `${I18nService.t("SHUFFLE")} (${GameConfig.shuffleCharges})`,
-      );
+      this.shuffleBtn.setBadge(GameConfig.shuffleCharges.toString());
       this.shuffleBtn.setDisabled(GameConfig.shuffleCharges <= 0);
     });
 
@@ -57,10 +55,7 @@ export class Sidebar extends BaseLayoutArea {
       this.score = 0;
       this.scoreText.setText("0");
       this.scoreHeader.setText(I18nService.t("SCORE"));
-      this.shuffleBtn.setText(
-        `${I18nService.t("SHUFFLE")} (${GameConfig.shuffleCharges})`,
-      );
-      this.settingsBtn.setText(I18nService.t("SETTINGS"));
+      this.shuffleBtn.setBadge(GameConfig.shuffleCharges.toString());
     });
   }
 
@@ -84,12 +79,13 @@ export class Sidebar extends BaseLayoutArea {
    */
   private createButtons(): void {
     this.shuffleBtn = new Button(this.scene, 0, 0, {
-      text: `${I18nService.t("SHUFFLE")} (${GameConfig.shuffleCharges})`,
+      icon: "icon-shuffle",
+      badge: GameConfig.shuffleCharges.toString(),
       callback: () => this.scene.events.emit("GAME_SHUFFLE"),
     });
 
     this.settingsBtn = new Button(this.scene, 0, 0, {
-      text: I18nService.t("SETTINGS"),
+      icon: "icon-settings",
       callback: () => this.scene.events.emit("UI_OPEN_SETTINGS"),
     });
 
@@ -181,8 +177,8 @@ export class Sidebar extends BaseLayoutArea {
     padding: number,
     gap: number,
   ): void {
-    const btnWidth = 140;
     const btnHeight = rect.height - padding * 2;
+    const btnWidth = rect.height;
 
     // Aligns score label and value on the left side
     this.scoreHeader.setOrigin(0, 0.5);

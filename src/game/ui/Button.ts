@@ -3,64 +3,93 @@ import { COLORS, getNumColor } from "../config/Theme";
 import { GameText } from "./GameText";
 
 /**
- * Configuration for the LayoutButton component.
+ * Configuration for the responsive Button component.
  */
 export type ButtonConfig = {
   /** The string to display inside the button */
-  text: string;
-  /** Fixed width of the button; if omitted, resize() should be called by the layout area */
+  text?: string;
+  /** The texture key for the icon image */
+  icon?: string;
+  /** Optional notification badge text */
+  badge?: string;
+  /** Fixed width of the button */
   width?: number;
   /** Fixed height of the button */
   height?: number;
-  /** Execution logic triggered on pointer down/click */
+  /** Execution logic triggered on pointer down */
   callback: () => void;
 };
 
-/** Internal configuration ensuring width/height are present */
+/** Internal configuration with mandatory dimensions */
 type InternalButtonConfig = Required<ButtonConfig>;
 
 /**
- * A responsive button component that handles its own interaction states,
- * visual feedback, and supports dynamic resizing within the LayoutManager system.
+ * A responsive button component supporting icons, labels, and badges.
+ * Dynamically scales its content via the LayoutManager system.
  */
 export class Button extends GameObjects.Container {
-  /** The background graphics object providing the shape and color */
+  /** Visual background of the button */
   private background: GameObjects.Graphics;
-  /** The specialized GameText instance for the button label */
-  private label: GameText;
-  /** Internal copy of config for size tracking */
+  /** Optional text label centered in the button */
+  private label?: GameText;
+  /** Optional icon image centered in the button */
+  private icon?: GameObjects.Image;
+  /** Optional notification text in the corner */
+  private badge?: GameText;
+  /** Circular background for the badge text */
+  private badgeBg?: GameObjects.Graphics;
+  /** Cached dimensions and settings */
   private config: InternalButtonConfig;
-  /** Track whether the button is currently clickable */
+  /** Current interactivity state */
   private isEnabled: boolean = true;
 
   /**
-   * @param scene - The active Phaser scene.
+   * @param scene - The active Phaser Scene.
    * @param x - Initial horizontal position.
    * @param y - Initial vertical position.
-   * @param config - Button initialization settings.
+   * @param config - Button setup configuration.
    */
   constructor(scene: Scene, x: number, y: number, config: ButtonConfig) {
     super(scene, x, y);
 
     this.config = {
-      width: config.width || 0,
-      height: config.height || 0,
+      width: config.width || 64,
+      height: config.height || 64,
+      text: "",
+      icon: "",
+      badge: "",
       ...config,
-    } as InternalButtonConfig;
+    };
 
-    // 1. Initialize background graphics
+    // 1. Initialize core visual layers
     this.background = scene.add.graphics();
-    this.drawState(getNumColor(COLORS.UI_BG_LIGHT), 1);
+    this.add(this.background);
 
-    // 2. Initialize text label using the GameText class for responsive scaling
-    this.label = new GameText(scene, config.text, {
-      fontSizeFactor: 0.025,
-    }).setOrigin(0.5);
+    // 2. Setup conditional components
+    if (config.text) {
+      this.label = new GameText(scene, config.text, {
+        fontSizeFactor: 0.025,
+      }).setOrigin(0.5);
+      this.label.setShadow(2, 2, "#000000", 2, true, true);
+      this.add(this.label);
+    }
 
-    // Add components to the container
-    this.add([this.background, this.label]);
+    if (config.icon) {
+      this.icon = new GameObjects.Image(scene, 0, 0, config.icon).setOrigin(
+        0.5,
+      );
+      this.add(this.icon);
+    }
 
-    // 3. Define the hit area (centered around the container's 0,0)
+    if (config.badge) {
+      this.badgeBg = scene.add.graphics();
+      this.badge = new GameText(scene, config.badge, {
+        fontSizeFactor: 0.02,
+      }).setOrigin(0.5);
+      this.add([this.badgeBg, this.badge]);
+    }
+
+    // 3. Define interactive hit area
     this.setInteractive(
       new Geom.Rectangle(
         -this.config.width / 2,
@@ -72,85 +101,138 @@ export class Button extends GameObjects.Container {
     );
 
     this.setupEvents();
-
-    // Register with scene display list
+    this.updateVisualState();
     scene.add.existing(this);
   }
 
   /**
-   * Updates the button's label text.
-   * @param text - The new string to display.
+   * Updates the text label content.
+   * @param text - New string to display.
    */
   public setText(text: string): void {
-    this.label.setText(text);
+    this.label?.setText(text);
   }
 
   /**
-   * Toggles the button's interactivity and visual state.
-   * @param disabled - If true, the button becomes unclickable and desaturated.
+   * Updates badge content and adjusts its visibility/layout.
+   * @param text - New string for the badge (hidden if "0" or empty).
    */
-  public setDisabled(disabled: boolean): void {
-    this.isEnabled = !disabled;
-
-    if (disabled) {
-      this.disableInteractive();
-      this.setAlpha(0.5); // Visual feedback: Grayed out
-      this.drawState(0x666666, 1);
-    } else {
-      this.setInteractive();
-      this.setAlpha(1.0);
-      this.drawState(getNumColor(COLORS.UI_BG_LIGHT), 1);
+  public setBadge(text: string): void {
+    if (this.badge && this.badgeBg) {
+      this.badge.setText(text);
+      this.updateComponentLayout();
     }
   }
 
   /**
-   * Attaches pointer events to handle hover, click, and release states.
+   * Toggles button interactivity and updates visual theme.
+   * @param disabled - True to disable clicks and desaturate visuals.
+   */
+  public setDisabled(disabled: boolean): void {
+    this.isEnabled = !disabled;
+    this.setAlpha(disabled ? 0.6 : 1.0);
+
+    if (disabled) {
+      this.disableInteractive();
+    } else {
+      this.setInteractive();
+    }
+    this.updateVisualState();
+  }
+
+  /**
+   * Centralized method to update background and badge colors based on state.
+   */
+  private updateVisualState(isHovered: boolean = false): void {
+    const bgColor = isHovered
+      ? getNumColor(COLORS.SECONDARY)
+      : getNumColor(this.isEnabled ? COLORS.UI_BG_LIGHT : "#666666");
+
+    this.drawState(bgColor, 1);
+    this.drawBadgeBackground();
+  }
+
+  /**
+   * Configures input listeners for tactile and visual feedback.
    */
   private setupEvents(): void {
-    // Hover visuals
-    this.on(Input.Events.POINTER_OVER, () => {
-      if (!this.isEnabled) return;
-      this.drawState(getNumColor(COLORS.SECONDARY), 1);
-    });
+    this.on(
+      Input.Events.POINTER_OVER,
+      () => this.isEnabled && this.updateVisualState(true),
+    );
 
     this.on(Input.Events.POINTER_OUT, () => {
-      this.drawState(getNumColor(COLORS.UI_BG_LIGHT), 1);
-      this.setScale(1); // Ensure scale resets if pointer leaves while down
+      this.updateVisualState(false);
+      this.setScale(1);
     });
 
-    // Interaction logic
     this.on(
       Input.Events.POINTER_DOWN,
-      (
-        _pointer: Input.Pointer,
-        _localX: number,
-        _localY: number,
-        event: Phaser.Types.Input.EventData,
-      ) => {
+      (_p: any, _lx: any, _ly: any, event: Phaser.Types.Input.EventData) => {
         event.stopPropagation();
-        this.setScale(0.95); // Small "tactile push" effect
-        this.config.callback();
+        if (this.isEnabled) {
+          this.setScale(0.92);
+          this.config.callback();
+        }
       },
     );
 
-    // Reset feedback scale on release
     this.on(Input.Events.POINTER_UP, () => this.setScale(1));
   }
 
   /**
-   * Redraws the background graphics using the current dimensions and color.
-   * @param color - The hexadecimal fill color.
-   * @param alpha - Fill transparency.
+   * Internal layout logic to position sub-components based on container size.
+   */
+  private updateComponentLayout(): void {
+    const { width, height } = this.config;
+    const minDim = Math.min(width, height);
+
+    if (this.icon) {
+      const padding = 0.7;
+      const targetSize = minDim * padding;
+      const scale =
+        (targetSize / Math.max(this.icon.width, this.icon.height)) * 0.8;
+      this.icon.setScale(scale);
+    }
+
+    if (this.badge) {
+      this.badge.setPosition(width * 0.4, -height * 0.4);
+      this.badge.resize();
+      this.drawBadgeBackground();
+    }
+
+    this.label?.resize();
+  }
+
+  /**
+   * Renders the notification badge circle background.
+   */
+  private drawBadgeBackground(): void {
+    if (!this.badgeBg || !this.badge?.visible) return;
+
+    const { width, height } = this.config;
+    const radius = Math.min(width, height) * 0.25;
+    const bx = width * 0.4;
+    const by = -height * 0.4;
+    const color = this.isEnabled ? 0xaa0000 : 0x444444;
+
+    this.badgeBg.clear();
+    this.badgeBg.fillStyle(color, 1);
+    this.badgeBg.fillCircle(bx, by, radius);
+    this.badgeBg.lineStyle(2, 0xffffff, 1);
+    this.badgeBg.strokeCircle(bx, by, radius);
+  }
+
+  /**
+   * Renders the main button background.
+   * @param color - Hexadecimal fill color.
+   * @param alpha - Opacity value.
    */
   private drawState(color: number, alpha: number): void {
     const { width, height } = this.config;
     this.background.clear();
-
-    // Main Fill
     this.background.fillStyle(color, alpha);
     this.background.fillRoundedRect(-width / 2, -height / 2, width, height, 8);
-
-    // Subtle Outline
     this.background.lineStyle(2, getNumColor(COLORS.BLACK), 0.2);
     this.background.strokeRoundedRect(
       -width / 2,
@@ -162,9 +244,7 @@ export class Button extends GameObjects.Container {
   }
 
   /**
-   * Resizes the button components and updates the interactive hit area.
-   * Should be called by the parent LayoutArea during resize events.
-   *
+   * External resize hook for the LayoutManager.
    * @param width - New width in pixels.
    * @param height - New height in pixels.
    */
@@ -172,13 +252,9 @@ export class Button extends GameObjects.Container {
     this.config.width = width;
     this.config.height = height;
 
-    // Delegate font scaling and text wrapping update to GameText
-    this.label.resize();
+    this.updateComponentLayout();
+    this.updateVisualState();
 
-    // Redraw geometry to match new dimensions
-    this.drawState(getNumColor(COLORS.UI_BG_LIGHT), 1);
-
-    // Recalculate hit area to prevent dead zones or oversized triggers
     if (this.input && this.input.hitArea) {
       (this.input.hitArea as Geom.Rectangle).setTo(
         -width / 2,

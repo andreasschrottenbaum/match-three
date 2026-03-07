@@ -24,7 +24,8 @@ export class MatchThree extends Scene {
     // Load custom fonts - Ensure the path is correct relative to the index.html
     this.load.font("FreckleFace", "./assets/fonts/FreckleFace-Regular.ttf");
 
-    // Additional assets like atlases or audio would be loaded here
+    this.load.svg("icon-settings", "./assets/icons/cogwheel.svg");
+    this.load.svg("icon-shuffle", "./assets/icons/shuffle.svg");
   }
 
   /**
