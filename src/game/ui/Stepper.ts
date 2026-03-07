@@ -20,8 +20,8 @@ export type StepperConfig = {
 };
 
 /**
- * A UI component consisting of a label, a value display, and increment/decrement buttons.
- * Designed to work within the responsive LayoutManager system.
+ * A UI component that now uses a horizontal layout to prevent vertical
+ * overlapping on small screens (especially in Landscape mode).
  */
 export class Stepper extends GameObjects.Container {
   /** Text object displaying the current numeric value */
@@ -45,38 +45,35 @@ export class Stepper extends GameObjects.Container {
     super(scene, x, y);
     this.config = config;
 
-    // 1. Initialize Descriptive Label
+    // 1. Label positioned to the left
     this.labelText = new GameText(scene, config.label, {
-      y: -40,
+      x: -80, // Offset to the left
       fontSizeFactor: 0.025,
-    }).setOrigin(0.5);
+    }).setOrigin(1, 0.5); // Align right-to-center
 
-    // 2. Initialize Decrement Button
-    this.btnMinus = new Button(scene, -60, 10, {
+    // 2. Decrement Button
+    this.btnMinus = new Button(scene, 20, 0, {
       text: "-",
       width: 40,
       height: 40,
       callback: () => this.updateValue(-1),
     });
 
-    // 3. Initialize Increment Button
-    this.btnPlus = new Button(scene, 60, 10, {
+    // 3. Value Display (centered between buttons)
+    this.valueText = new GameText(scene, config.value.toString(), {
+      x: 70,
+      color: COLORS.SECONDARY,
+    }).setOrigin(0.5);
+
+    // 4. Increment Button
+    this.btnPlus = new Button(scene, 120, 0, {
       text: "+",
       width: 40,
       height: 40,
       callback: () => this.updateValue(1),
     });
 
-    // 4. Initialize Value Display
-    this.valueText = new GameText(scene, config.value.toString(), {
-      y: 10,
-      color: COLORS.SECONDARY,
-    }).setOrigin(0.5);
-
-    // Add all children to the container
     this.add([this.labelText, this.btnMinus, this.btnPlus, this.valueText]);
-
-    // Register with scene display list
     scene.add.existing(this);
   }
 
@@ -120,11 +117,11 @@ export class Stepper extends GameObjects.Container {
    * Ensures text scaling and button hit areas are recalculated.
    */
   public resize(): void {
-    // Update scaling for labels
     this.labelText.resize();
-    this.valueText.resize();
+    // Prevent the label from getting too wide and overlapping buttons
+    this.labelText.setMaxWidth(150);
 
-    // Update scaling and hit areas for buttons
+    this.valueText.resize();
     this.btnMinus.resize(40, 40);
     this.btnPlus.resize(40, 40);
   }

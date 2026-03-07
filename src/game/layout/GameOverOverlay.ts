@@ -1,14 +1,17 @@
-import { Scene, Geom } from "phaser";
+import { Scene, Geom, GameObjects } from "phaser";
 import { BaseOverlay } from "./BaseOverlay";
 import { Button } from "../ui/Button";
 import { I18nService } from "../i18n/I18nService";
 import { GameText } from "../ui/GameText";
+import { COLORS, getNumColor } from "../config/Theme";
 
 /**
  * Overlay displayed when the game ends (no more moves).
  * Displays the final score and provides a restart option.
  */
 export class GameOverOverlay extends BaseOverlay {
+  /** Background panel for the game over elements */
+  private panel: GameObjects.Graphics;
   /** Title text displaying the "Game Over" message */
   private titleText: GameText;
   /** Text displaying the accumulated player score */
@@ -24,10 +27,14 @@ export class GameOverOverlay extends BaseOverlay {
   constructor(scene: Scene) {
     super(scene);
 
+    // Initialize the background panel first to ensure correct depth sorting
+    this.panel = this.scene.add.graphics();
+
     // 1. Initialize text elements using GameText for responsiveness
-    this.titleText = new GameText(scene, I18nService.t("GAME_OVER")).setOrigin(
-      0.5,
-    );
+    // The title will get a larger font factor for visual hierarchy
+    this.titleText = new GameText(scene, I18nService.t("GAME_OVER"), {
+      fontSizeFactor: 0.05,
+    }).setOrigin(0.5);
 
     this.scoreText = new GameText(
       scene,
@@ -39,12 +46,12 @@ export class GameOverOverlay extends BaseOverlay {
       text: I18nService.t("RESTART"),
       callback: () => {
         this.hide();
-        // Emit global reset event
+        // Emit global reset event to start a fresh game
         this.scene.events.emit("SETTINGS_CHANGED");
       },
     });
 
-    this.add([this.titleText, this.scoreText, this.retryButton]);
+    this.add([this.panel, this.titleText, this.scoreText, this.retryButton]);
 
     // 3. Register Event Listeners
     this.setupEventListeners();
@@ -102,26 +109,45 @@ export class GameOverOverlay extends BaseOverlay {
 
   /**
    * Orchestrates the layout of the overlay elements.
-   * Ensures all text and button elements are resized for the current screen.
+   * Implements text width constraints to prevent Desktop overflow.
    * @param rect - The screen dimensions provided by the LayoutManager.
    */
   public resize(rect: Geom.Rectangle): void {
     // Update the full-screen background dimmer from the base class
     this.drawDimmer(rect);
 
-    const cx = rect.width / 2;
-    const cy = rect.height / 2;
+    // 1. Calculate Panel Dimensions (consistent with SettingsView)
+    // Set limits for desktop to prevent it from getting too large.
+    const panelWidth = Math.min(rect.width * 0.85, 450);
+    const panelHeight = Math.min(rect.height * 0.5, 400);
+    const panelX = (rect.width - panelWidth) / 2;
+    const panelY = (rect.height - panelHeight) / 2;
 
-    // Position and resize GameText elements
-    this.titleText.setPosition(cx, cy - 80);
+    // 2. Draw the Panel Background
+    this.panel.clear();
+    this.panel.fillStyle(getNumColor(COLORS.UI_BG_DARK), 0.95);
+    this.panel.lineStyle(4, getNumColor(COLORS.WHITE), 1);
+    this.panel.fillRoundedRect(panelX, panelY, panelWidth, panelHeight, 20);
+    this.panel.strokeRoundedRect(panelX, panelY, panelWidth, panelHeight, 20);
+
+    const cx = rect.width / 2;
+
+    // 3. Define Constraints for Text Width (e.g., 90% of panel width)
+    const textMaxWidth = panelWidth * 0.9;
+
+    // 4. Position and resize GameText elements with constraints
+    this.titleText.setMaxWidth(textMaxWidth); // APPLY CONSTRAINT HERE
+    this.titleText.setPosition(cx, panelY + panelHeight * 0.25);
+    // Inform the text object to recalculate scaling
     this.titleText.resize();
 
-    this.scoreText.setPosition(cx, cy);
+    this.scoreText.setMaxWidth(textMaxWidth); // APPLY CONSTRAINT HERE
+    this.scoreText.setPosition(cx, panelY + panelHeight * 0.5);
     this.scoreText.resize();
 
-    // Position and resize the Button component
-    this.retryButton.setPosition(cx, cy + 100);
-    this.retryButton.resize(200, 60);
+    // 5. Position and resize the Button component
+    this.retryButton.setPosition(cx, panelY + panelHeight - 60);
+    this.retryButton.resize(panelWidth * 0.6, 60);
 
     // Ensure input blocker matches the full screen if shown
     if (this.isShown) {

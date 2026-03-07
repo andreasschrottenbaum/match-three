@@ -1,10 +1,11 @@
-import { Scene, Geom } from "phaser";
+import { Scene, Geom, GameObjects } from "phaser";
 import { BaseOverlay } from "./BaseOverlay";
 import { Button } from "../ui/Button";
 import { GameConfig, GameSettings } from "../config/GameConfig";
 import { Stepper } from "../ui/Stepper";
 import { I18nService } from "../i18n/I18nService";
 import { GameText } from "../ui/GameText";
+import { COLORS, getNumColor } from "../config/Theme";
 
 /**
  * The SettingsView provides a modal interface for adjusting game parameters
@@ -12,6 +13,8 @@ import { GameText } from "../ui/GameText";
  * accidental changes during gameplay.
  */
 export class SettingsView extends BaseOverlay {
+  /** Background panel for the settings elements */
+  private panel: GameObjects.Graphics;
   /** Title text at the top of the overlay */
   private title: GameText;
   /** Button to apply changes and restart the game board */
@@ -101,6 +104,9 @@ export class SettingsView extends BaseOverlay {
    * Initializes all UI components and adds them to the overlay container.
    */
   private createUI(): void {
+    // Create the background panel first to ensure it's at the back
+    this.panel = this.scene.add.graphics();
+
     this.title = new GameText(this.scene, I18nService.t("SETTINGS")).setOrigin(
       0.5,
     );
@@ -138,6 +144,7 @@ export class SettingsView extends BaseOverlay {
     });
 
     this.add([
+      this.panel,
       this.title,
       this.saveBtn,
       this.cancelBtn,
@@ -156,32 +163,43 @@ export class SettingsView extends BaseOverlay {
     // Render the base dimmer from BaseOverlay
     this.drawDimmer(rect);
 
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
+    // 1. Calculate Panel Dimensions
+    // Mobile: 90% width, 70% height | Desktop: max 500px width
+    const panelWidth = Math.min(rect.width * 0.9, 500);
+    const panelHeight = Math.min(rect.height * 0.7, 600);
+    const panelX = (rect.width - panelWidth) / 2;
+    const panelY = (rect.height - panelHeight) / 2;
 
-    // 1. Update Title Position & Size
-    this.title.setPosition(centerX, rect.height * 0.15);
+    // 2. Draw the Panel Background
+    this.panel.clear();
+    this.panel.fillStyle(getNumColor(COLORS.UI_BG_DARK), 0.95);
+    this.panel.lineStyle(4, getNumColor(COLORS.WHITE), 1);
+    this.panel.fillRoundedRect(panelX, panelY, panelWidth, panelHeight, 20);
+    this.panel.strokeRoundedRect(panelX, panelY, panelWidth, panelHeight, 20);
+
+    const centerX = rect.width / 2;
+
+    // 3. Update Title Position (top of panel)
+    this.title.setPosition(centerX, panelY + panelHeight * 0.15);
     this.title.resize();
 
-    // 2. Update Stepper Components
-    this.sizeStepper.setPosition(centerX, centerY - 60);
+    // 4. Update Stepper Components (centered in panel)
+    this.sizeStepper.setPosition(centerX, panelY + panelHeight * 0.4);
     this.sizeStepper.resize();
 
-    this.varietyStepper.setPosition(centerX, centerY + 60);
+    this.varietyStepper.setPosition(centerX, panelY + panelHeight * 0.6);
     this.varietyStepper.resize();
 
-    // 3. Update Action Buttons
-    const bottomPadding = 100;
-    const btnSpacing = 115;
+    // 5. Update Action Buttons (bottom of panel)
+    const btnSpacing = panelWidth * 0.25;
+    const btnY = panelY + panelHeight - 60;
+    const btnWidth = panelWidth / 2 - 40;
 
-    this.saveBtn.setPosition(centerX + btnSpacing, rect.height - bottomPadding);
-    this.saveBtn.resize(210, 60);
+    this.saveBtn.setPosition(centerX + btnSpacing, btnY);
+    this.saveBtn.resize(btnWidth, 50);
 
-    this.cancelBtn.setPosition(
-      centerX - btnSpacing,
-      rect.height - bottomPadding,
-    );
-    this.cancelBtn.resize(210, 60);
+    this.cancelBtn.setPosition(centerX - btnSpacing, btnY);
+    this.cancelBtn.resize(btnWidth, 50);
 
     // Ensure the input blocking zone is updated in the base class
     if (this.isShown) {
