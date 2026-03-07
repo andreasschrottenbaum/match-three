@@ -134,11 +134,8 @@ export class LayoutManager {
     const mainHeight = height - headerHeight - sidebarHeight - footerHeight;
 
     bounds.header.setTo(0, 0, width, headerHeight);
-
     bounds.sidebar.setTo(0, headerHeight, width, sidebarHeight);
-
     bounds.content.setTo(0, headerHeight + sidebarHeight, width, mainHeight);
-
     bounds.footer.setTo(0, height - footerHeight, width, footerHeight);
   }
 }
