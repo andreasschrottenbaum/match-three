@@ -2,7 +2,7 @@ name: Deploy to GH Pages
 
 on:
   push:
-    branches: [main] # Oder 'master', je nachdem wie dein Branch heißt
+    branches: [main]
 
 permissions:
   contents: read
@@ -24,8 +24,11 @@ jobs:
       - name: Install Dependencies
         run: bun install
 
-      - name: Build Project
+      - name: Build Game
         run: bun run build
+
+      - name: Generate Documentation
+        run: bun run docs --out ./dist/docs
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -33,7 +36,6 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Vite baut standardmäßig in den 'dist' Ordner
           path: "./dist"
 
       - name: Deploy to GitHub Pages

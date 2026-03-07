@@ -21,6 +21,8 @@ A relaxing Match-3 experience built with **Phaser 3**, **TypeScript**, and **Bun
 - **Testing**: [Vitest](https://vitest.dev/)
 - **CI/CD**: GitHub Actions
 
+For a deep dive into the class hierarchy and method signatures, refer to the [API Documentation](https://andreasschrottenbaum.github.io/match-three/docs/)
+
 ---
 
 ## 📦 Getting Started
@@ -58,6 +60,17 @@ bun test
 # Run tests in watch mode
 bun test --watch
 ```
+
+## 📚 Documentation
+
+The project uses **TypeDoc** to generate a comprehensive API reference directly from the source code comments.
+
+```bash
+# Generate HTML documentation
+bun run docs
+```
+
+The documentation will be generated in the /docs folder. It includes detailed information about the Layout System, UI Components, and the Core Logic.
 
 ## 🏗 Architecture
 

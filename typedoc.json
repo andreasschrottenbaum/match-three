@@ -1,0 +1,25 @@
+{
+  "entryPointStrategy": "expand",
+  "entryPoints": ["src"],
+  "out": "docs",
+  "name": "Match-Three Game API",
+  "includeVersion": true,
+  "exclude": ["**/*.test.ts", "**/vite-env.d.ts"],
+  "excludePrivate": false,
+  "excludeProtected": false,
+  "theme": "default",
+  "readme": "README.md",
+  "githubPages": true,
+  "cleanOutputDir": true,
+  "categorizeByGroup": true,
+  "searchInComments": true,
+  "validation": {
+    "notExported": false
+  },
+  "externalSymbolLinkMappings": {
+    "phaser": {
+      "Phaser.GameObjects.Components.Depth.depth": "#",
+      "Phaser.GameObjects.Components.Depth.setDepth": "#"
+    }
+  }
+}
