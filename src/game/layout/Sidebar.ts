@@ -39,8 +39,8 @@ export class Sidebar extends BaseLayoutArea {
    */
   private setupEventListeners(): void {
     // Update score when tiles are cleared
-    this.scene.events.on("TILES_CLEARED", (count: number) =>
-      this.updateScore(count),
+    this.scene.events.on("SCORE_EARNED", (points: number) =>
+      this.updateScore(points),
     );
 
     // Refresh shuffle button text and state (enabled/disabled)
@@ -96,8 +96,8 @@ export class Sidebar extends BaseLayoutArea {
    * Increments the score and triggers a visual "pop" animation.
    * @param count - The number of tiles matched.
    */
-  private updateScore(count: number): void {
-    this.score += count * 10;
+  private updateScore(points: number): void {
+    this.score += points;
     this.scoreText.setText(this.score.toString());
 
     // Visual feedback for score increment

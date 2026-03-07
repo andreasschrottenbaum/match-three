@@ -86,6 +86,6 @@ This decoupling allows for lightning-fast unit testing without the overhead of a
 
 - [x] Add LocalStorage for Highscores
 - [x] Implement Particle Effects for matches
-- [ ] Re-Implement Combo Multiplier
+- [x] Re-Implement Combo Multiplier
 - [ ] Add sound effects and ambient music
 - [ ] Integration/E2E tests with Playwright

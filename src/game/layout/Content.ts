@@ -8,11 +8,12 @@ import { GridInputHandler } from "../logic/GridInputHandler";
 import { GridAnimator } from "../logic/GridAnimator";
 import { Tile } from "../entities/Tile";
 import { BoardLogic } from "../logic/BoardLogic";
+import { GameText } from "../ui/GameText";
 
 /**
  * Main gameplay controller.
  * Orchestrates the synchronization between the logical GridModel and the visual Tiles.
- * Manages game states like swapping, matching, gravity, and refills.
+ * Manages game states like swapping, matching, gravity, and combo multipliers.
  */
 export class Content extends BaseLayoutArea {
   /** Graphics layer for the board background and selection highlights */
@@ -34,6 +35,11 @@ export class Content extends BaseLayoutArea {
   private isAnimating: boolean = false;
   /** Stores the first tile coordinate in a potential swap pair */
   private firstSelection: GridPosition | null = null;
+
+  /** * Tracks the current chain reaction multiplier.
+   * Starts at 1 and increases with every cascading match.
+   */
+  private currentCombo: number = 1;
 
   /**
    * @param scene - The Phaser Scene this content area belongs to.
@@ -96,11 +102,12 @@ export class Content extends BaseLayoutArea {
 
   /**
    * Full reset of the game board.
-   * Clears models, destroys visual objects, and resets shuffle charges.
+   * Clears models, destroys visual objects, and resets combo state.
    */
   private handleReset(): void {
     this.isAnimating = false;
     this.firstSelection = null;
+    this.currentCombo = 1;
 
     GameConfig.shuffleCharges = GameConfig.maxShuffleCharges;
     this.scene.events.emit("UPDATE_SHUFFLE_UI");
@@ -195,7 +202,7 @@ export class Content extends BaseLayoutArea {
 
   /**
    * Executes a swap animation and logic.
-   * If the swap is invalid (no match), the tiles are swapped back.
+   * Resets the combo multiplier to 1 as it's a new player-initiated move.
    * @param posA - Origin position.
    * @param posB - Target position.
    */
@@ -209,7 +216,9 @@ export class Content extends BaseLayoutArea {
 
     this.animator.swap(tileA, tileB, isValid, () => {
       if (isValid) {
-        // Swap visual tracking in the Map
+        // Reset multiplier for the first match of the new turn
+        this.currentCombo = 1;
+
         this.tiles.set(`${posA.row}-${posA.col}`, tileB);
         this.tiles.set(`${posB.row}-${posB.col}`, tileA);
         this.handleMatches();
@@ -220,17 +229,29 @@ export class Content extends BaseLayoutArea {
   }
 
   /**
-   * Finds matches in the model, destroys visual tiles, and emits score events.
+   * Finds matches, calculates score using the current multiplier, and handles cascades.
    */
   private handleMatches(): void {
     const matches = this.model.findMatches();
     if (matches.length === 0) {
       this.isAnimating = false;
+      this.currentCombo = 1;
       return;
     }
 
     this.isAnimating = true;
-    this.scene.events.emit("TILES_CLEARED", matches.length);
+
+    // 1. Score berechnen (Combo startet bei 1)
+    const points = BoardLogic.calculateScore(matches, this.currentCombo);
+    this.scene.events.emit("SCORE_EARNED", points);
+
+    // 2. Combo-Text nur anzeigen, wenn es wirklich eine Kette ist (Combo > 1)
+    if (this.currentCombo > 1) {
+      this.showComboPopup(matches, this.currentCombo);
+    }
+
+    // 3. Erst NACH der Anzeige/Berechnung den Multiplikator für die nächste Kaskade erhöhen
+    this.currentCombo++;
 
     matches.forEach((pos) => {
       const key = `${pos.row}-${pos.col}`;
@@ -238,6 +259,7 @@ export class Content extends BaseLayoutArea {
 
       if (tile) {
         this.tiles.delete(key);
+        // Die Explosion macht jetzt NUR noch Partikel, keinen Text mehr!
         this.createExplosion(tile.x, tile.y, tile.fillColor);
         this.animator.destroy(tile, () => tile.destroy());
       }
@@ -250,7 +272,54 @@ export class Content extends BaseLayoutArea {
   }
 
   /**
-   * Shuffles the logical board and performs a "fall-in" animation for all tiles.
+   * Displays a single floating combo text at the center of a match group.
+   * @param matches - The positions of the matched tiles.
+   * @param multiplier - The current combo value.
+   */
+  private showComboPopup(matches: GridPosition[], multiplier: number): void {
+    let avgX = 0;
+    let avgY = 0;
+
+    matches.forEach((pos) => {
+      avgX +=
+        this.gridMetrics.offsetX +
+        pos.col * this.gridMetrics.cellSize +
+        this.gridMetrics.cellSize / 2;
+      avgY +=
+        this.gridMetrics.offsetY +
+        pos.row * this.gridMetrics.cellSize +
+        this.gridMetrics.cellSize / 2;
+    });
+
+    avgX /= matches.length;
+    avgY /= matches.length;
+
+    const wp = new PhaserMath.Vector2();
+    this.getWorldTransformMatrix().transformPoint(avgX, avgY, wp);
+
+    const comboTxt = new GameText(this.scene, `x${multiplier}`, {
+      x: wp.x,
+      y: wp.y,
+      fontSizeFactor: 2,
+      color: COLORS.SECONDARY,
+    })
+      .setStroke("#000000", 6)
+      .setOrigin(0.5)
+      .setDepth(100);
+
+    this.scene.tweens.add({
+      targets: comboTxt,
+      y: wp.y - 100,
+      alpha: 0,
+      scale: 1.8,
+      duration: 2000,
+      ease: "Back.easeOut",
+      onComplete: () => comboTxt.destroy(),
+    });
+  }
+
+  /**
+   * Shuffles the logical board and performs a "fall-in" animation.
    */
   private handleShuffle(): void {
     if (this.isAnimating || !GameConfig.shuffleCharges) return;
@@ -293,7 +362,7 @@ export class Content extends BaseLayoutArea {
           this.gridMetrics.cellSize / 2;
 
         tile.x = targetX;
-        tile.y -= 600; // Starting offset for shuffle "rain" effect
+        tile.y -= 600;
 
         this.animator.drop(tile, targetY, row * 20, () => {
           if (++completedCount === tileList.length) {
@@ -326,7 +395,7 @@ export class Content extends BaseLayoutArea {
   }
 
   /**
-   * Refills the board with new tiles from the top.
+   * Refills the board and checks for chain reactions.
    * @param newTiles - List of grid positions to refill.
    */
   private spawnNewTiles(newTiles: { row: number; col: number }[]): void {
@@ -380,8 +449,7 @@ export class Content extends BaseLayoutArea {
   }
 
   /**
-   * Spawns a particle emitter for match feedback.
-   * Uses world coordinates to ensure particles aren't clipped by containers.
+   * Spawns a particle emitter and a floating combo text for match feedback.
    */
   private createExplosion(tileX: number, tileY: number, color: number): void {
     const wp = new PhaserMath.Vector2();

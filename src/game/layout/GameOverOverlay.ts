@@ -76,9 +76,10 @@ export class GameOverOverlay extends BaseOverlay {
    */
   private setupEventListeners(): void {
     // Increment score based on cleared tiles
-    const scoreHandler = (count: number) => {
-      this.finalScore += count * 10;
+    const scoreHandler = (points: number) => {
+      this.finalScore += points;
     };
+    this.scene.events.on("SCORE_EARNED", scoreHandler);
 
     // Reset logic when a new game starts
     const resetHandler = () => {
