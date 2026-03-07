@@ -8,7 +8,7 @@ import { GameText } from "../ui/GameText";
 
 /**
  * Sidebar component managing game stats and control buttons.
- * Dynamically adapts its layout between column (Landscape) and row (Portrait) modes.
+ * Uses a zone-based layout to prevent overlapping on small screens.
  */
 export class Sidebar extends BaseLayoutArea {
   /** Internal list of buttons for batch processing and alignment */
@@ -25,11 +25,10 @@ export class Sidebar extends BaseLayoutArea {
   private settingsBtn!: Button;
 
   /**
-   * @param scene - The Phaser Scene instance.
+   * @param scene - The active Phaser Scene.
    */
   constructor(scene: Scene) {
     super(scene);
-
     this.setupScoreDisplay();
     this.createButtons();
     this.setupEventListeners();
@@ -64,11 +63,11 @@ export class Sidebar extends BaseLayoutArea {
    */
   private setupScoreDisplay(): void {
     this.scoreHeader = new GameText(this.scene, I18nService.t("SCORE"), {
-      fontSizeFactor: 0.05,
+      fontSizeFactor: 0.045,
     }).setOrigin(0.5);
 
     this.scoreText = new GameText(this.scene, "0", {
-      fontSizeFactor: 0.06,
+      fontSizeFactor: 0.055,
     }).setOrigin(0.5);
 
     this.add([this.scoreHeader, this.scoreText]);
@@ -104,11 +103,10 @@ export class Sidebar extends BaseLayoutArea {
     // Visual feedback for score increment
     this.scene.tweens.add({
       targets: this.scoreText,
-      scale: 1.2,
+      scale: this.scoreText.scale * 1.2,
       duration: 100,
       yoyo: true,
       ease: "Quad.easeOut",
-      onComplete: () => this.scoreText.setScale(1), // Ensure it returns to base scale
     });
   }
 
@@ -121,79 +119,90 @@ export class Sidebar extends BaseLayoutArea {
 
     // Determine orientation based on aspect ratio
     const isPortraitArea = rect.height < rect.width;
-    const padding = LAYOUT.PADDING;
-    const gap = 20;
-
-    // Refresh font sizes for all text elements
-    this.scoreHeader.resize();
-    this.scoreText.resize();
 
     if (isPortraitArea) {
-      this.layoutHorizontal(rect, padding, gap);
+      this.layoutHorizontal(rect);
     } else {
-      this.layoutVertical(rect, padding, gap);
+      this.layoutVertical(rect);
     }
   }
 
   /**
    * Layout for Landscape Mode: Sidebar appears as a vertical column.
    * @param rect - The calculation bounds.
-   * @param padding - Side padding.
-   * @param gap - Gap between items.
    */
-  private layoutVertical(
-    rect: Geom.Rectangle,
-    padding: number,
-    gap: number,
-  ): void {
-    const btnWidth = rect.width - padding * 2;
-    const btnHeight = 50;
+  private layoutVertical(rect: Geom.Rectangle): void {
+    const padding = LAYOUT.PADDING;
+    const gap = 15;
+    const maxBtnSize = 80; // Absolute limit for button growth
 
-    // Center header and score at the top
+    // Define vertical zones: 30% for score, 70% for buttons
+    const scoreZoneHeight = rect.height * 0.3;
+    const buttonZoneHeight = rect.height * 0.7;
+    const maxWidth = rect.width - padding * 2;
+
+    // Constrain text
+    this.scoreHeader.setMaxWidth(maxWidth);
+    this.scoreText.setMaxWidth(maxWidth);
+
+    // Position score (centered in zone)
     this.scoreHeader.setOrigin(0.5);
-    this.scoreHeader.setPosition(rect.width / 2, padding * 2);
-
+    this.scoreHeader.setPosition(rect.width / 2, scoreZoneHeight * 0.35);
     this.scoreText.setOrigin(0.5);
-    this.scoreText.setPosition(rect.width / 2, padding * 5);
+    this.scoreText.setPosition(rect.width / 2, scoreZoneHeight * 0.75);
 
-    // Stack buttons from the bottom up
-    let currentY = rect.height - padding - btnHeight / 2;
+    // Calculate dynamic button size with an upper cap
+    // 1. Based on width (with padding)
+    // 2. Based on available height divided by button count
+    // 3. Capped at maxBtnSize
+    const btnSize = Math.min(
+      maxWidth * 0.9,
+      buttonZoneHeight / this.buttons.length - gap,
+      maxBtnSize,
+    );
+
+    // Start positioning from the bottom
+    let currentY = rect.height - padding - btnSize / 2;
 
     [...this.buttons].reverse().forEach((btn) => {
       btn.setPosition(rect.width / 2, currentY);
-      btn.resize(btnWidth, btnHeight);
-      currentY -= btnHeight + gap;
+      btn.resize(btnSize, btnSize);
+      currentY -= btnSize + gap;
     });
   }
 
   /**
-   * Layout for Portrait Mode: Sidebar appears as a horizontal toolbar.
-   * @param rect - The calculation bounds.
-   * @param padding - Side padding.
-   * @param gap - Gap between items.
+   * Horizontal layout for Portrait mode (Toolbar).
    */
-  private layoutHorizontal(
-    rect: Geom.Rectangle,
-    padding: number,
-    gap: number,
-  ): void {
-    const btnHeight = rect.height - padding * 2;
-    const btnWidth = rect.height;
+  private layoutHorizontal(rect: Geom.Rectangle): void {
+    const padding = LAYOUT.PADDING;
+    const gap = 15;
 
-    // Aligns score label and value on the left side
-    this.scoreHeader.setOrigin(0, 0.5);
-    this.scoreHeader.setPosition(padding, rect.height / 2);
+    // Split width: 40% Score, 60% Buttons
+    const scoreZoneWidth = rect.width * 0.4;
+    const buttonZoneWidth = rect.width * 0.6;
+    const centerY = rect.height / 2;
 
-    this.scoreText.setOrigin(0, 0.5);
-    this.scoreText.setPosition(padding * 6, rect.height / 2);
+    // Score Layout
+    this.scoreHeader.setOrigin(0.5);
+    this.scoreText.setOrigin(0.5);
+    this.scoreHeader.setMaxWidth(scoreZoneWidth * 0.4);
+    this.scoreText.setMaxWidth(scoreZoneWidth * 0.4);
 
-    // Stack buttons from the right to the left
-    let currentX = rect.width - padding - btnWidth / 2;
+    this.scoreHeader.setPosition(scoreZoneWidth * 0.3, centerY);
+    this.scoreText.setPosition(scoreZoneWidth * 0.7, centerY);
+
+    // Button Layout
+    const btnSize = Math.min(
+      rect.height * 0.85,
+      buttonZoneWidth / this.buttons.length - gap,
+    );
+    let currentX = rect.width - padding - btnSize / 2;
 
     [...this.buttons].reverse().forEach((btn) => {
-      btn.setPosition(currentX, rect.height / 2);
-      btn.resize(btnWidth, btnHeight);
-      currentX -= btnWidth + gap;
+      btn.setPosition(currentX, centerY);
+      btn.resize(btnSize, btnSize);
+      currentX -= btnSize + gap;
     });
   }
 }
