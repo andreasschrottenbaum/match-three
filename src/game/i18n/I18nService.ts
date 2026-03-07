@@ -37,9 +37,6 @@ export class I18nService {
    */
   public static toggleLanguage(): void {
     this.currentLocale = this.currentLocale === "en" ? "de" : "en";
-
-    // Log change for debugging purposes
-    console.log(`Language toggled to: ${this.currentLocale}`);
   }
 
   /**
