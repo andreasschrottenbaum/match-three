@@ -1,26 +1,16 @@
 body {
   margin: 0;
-  padding: 0;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #666;
-  overflow: hidden;
+  background: #666;
 }
 
 #app {
-  width: 100%;
-  margin-top: 80px;
-  height: calc(100dvh - 80px);
-  overflow: hidden;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  width: 100svi;
+  height: 100svb;
 }
 
 @font-face {
   font-family: "FreckleFace";
   src: url("./assets/fonts/FreckleFace-Regular.ttf") format("truetype");
-  font-weight: normal;
-  font-style: normal;
 }
 
 canvas {

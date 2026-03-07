@@ -10,9 +10,6 @@ const config: Types.Core.GameConfig = {
   scale: {
     mode: Scale.RESIZE,
     parent: "game-container",
-    width: "100%",
-    height: "100%",
-    expandParent: true,
   },
   scene: [MatchThree],
   roundPixels: true,
