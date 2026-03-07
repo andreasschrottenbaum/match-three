@@ -1,6 +1,6 @@
 [![Bun Tests](https://github.com/andreasschrottenbaum/match-three/actions/workflows/test.yml/badge.svg)](https://github.com/andreasschrottenbaum/match-three/actions/workflows/test.yml) [![Deploy to GH Pages](https://github.com/andreasschrottenbaum/match-three/actions/workflows/deploy.yml/badge.svg)](https://github.com/andreasschrottenbaum/match-three/actions/workflows/deploy.yml)
 
-# 💎 Zen Match-3 Prototype
+# 💎 Match-3
 
 A relaxing Match-3 experience built with **Phaser 3**, **TypeScript**, and **Bun**. This project focuses on high-quality code architecture, featuring a strict separation between game logic and the rendering engine to ensure 100% testability of core mechanics.
 
